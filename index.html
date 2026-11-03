@@ -535,6 +535,16 @@ td input[type=date]{padding:4px 8px}
 .pole-pop{position:fixed;z-index:30;width:220px;padding:12px;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 32px rgba(20,26,42,.16);animation:fade .12s ease}
 .pole-pop[hidden]{display:none}
 .pole-pop .pole-pick{flex-direction:column}
+.pole-archive{display:block;width:100%;margin-top:10px;padding:7px 0 0;border:0;border-top:1px solid var(--line);background:transparent;color:var(--muted);font:inherit;font-size:12.5px;text-align:left;cursor:pointer}
+.pole-archive:hover{color:var(--text);text-decoration:underline}
+.archived-people{margin:-4px 0 14px;font-size:12.5px}
+.archived-people summary{cursor:pointer;color:var(--muted);user-select:none}
+.archived-people summary:hover{color:var(--text)}
+.archived-people .chips{margin-bottom:0}
+.chip.archived{background:transparent;border:1px dashed var(--line);color:var(--muted)}
+.chip.archived .chip-name{cursor:default}
+.chip.archived .chip-name:hover{text-decoration:none}
+.chip .chip-restore{width:auto;padding:0 8px;font-size:11.5px;color:var(--accent)}
 
 /* Classement */
 .ranking{list-style:none;margin:0;padding:0}
@@ -638,7 +648,6 @@ td input[type=date]{padding:4px 8px}
 .client-legend{display:flex;gap:16px;font-size:11.5px;font-weight:500;text-transform:none;letter-spacing:0;color:var(--muted)}
 .client-legend span{display:inline-flex;align-items:center;gap:6px}
 .client-legend i{display:inline-block;width:10px;height:10px;border-radius:3px}
-#clientMore{margin-top:10px;font-size:13px}
 @media (max-width:600px){.client-row{grid-template-columns:minmax(90px,1fr) 1fr 36px 46px;gap:8px}}
 .view-switch{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;margin:-6px 0 8px}
 @media (max-width:640px){.view-switch{grid-template-columns:1fr}.view-switch>span:first-child{display:none}}
@@ -689,6 +698,11 @@ td input[type=date]{padding:4px 8px}
 @media (max-width:600px){.ranking-split .rank-row{grid-template-columns:36px 1fr 56px}}
 .view-switch .tab{padding:7px 28px}
 .view-switch .tab[aria-pressed="true"]{background:var(--surface);color:var(--text);box-shadow:var(--shadow)}
+.date-note{display:flex;align-items:center;gap:10px;width:fit-content;max-width:100%;margin:0 auto 16px;padding:9px 16px;border-radius:10px;background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);color:var(--text);font-size:13.5px;font-weight:500}
+.date-note::before{content:"i";flex:none;display:grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;font:700 12px/1 Georgia,serif}
+.date-note b{color:var(--accent)}
+.date-note[hidden]{display:none}
+.view-switch .tab .tab-date{font-size:12px;font-weight:400;color:var(--muted);margin-left:4px;font-variant-numeric:tabular-nums}
 /* Archives : Tickets affectés (bleu) / Tickets pris (doré) */
 .ar-switch{padding:5px;gap:6px}
 .ar-switch .tab{display:inline-flex;align-items:center;gap:9px;padding:8px 24px;--c:var(--accent);--c-soft:var(--accent-soft);transition:background .15s,color .15s,box-shadow .15s}
@@ -890,14 +904,14 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     <div class="tabs" role="tablist">
       <button class="tab" role="tab" id="tab-tickets" aria-controls="panel-tickets" aria-selected="true">Tickets<small id="tabTicketsSub">0 ligne</small></button>
       <button class="tab" role="tab" id="tab-archive" aria-controls="panel-archive" aria-selected="false">Archives<small id="tabArchiveSub">0 ticket</small></button>
-      <button class="tab" role="tab" id="tab-stats" aria-controls="panel-stats" aria-selected="false">Statistiques consultant<small>Mois et année</small></button>
-      <button class="tab" role="tab" id="tab-clients" aria-controls="panel-clients" aria-selected="false">Statistiques client<small>Par organisation</small></button>
+      <button class="tab" role="tab" id="tab-stats" aria-controls="panel-stats" aria-selected="false">Statistiques consultant<small id="tabStatsSub">0 consultant</small></button>
+      <button class="tab" role="tab" id="tab-clients" aria-controls="panel-clients" aria-selected="false">Statistiques client<small id="tabClientsSub">0 client</small></button>
     </div>
     <div class="banner" id="banner" aria-label="L'essentiel"></div>
   </div>
 
   <!-- Onglet Tickets -->
-  <div class="pole-pop" id="polePop" role="dialog" hidden><p class="modal-kicker" id="polePopTitle"></p><div class="pole-pick" id="polePopList"></div></div>
+  <div class="pole-pop" id="polePop" role="dialog" hidden><p class="modal-kicker" id="polePopTitle"></p><div class="pole-pick" id="polePopList"></div><button type="button" class="pole-archive" id="polePopArchive"></button></div>
 
   <div id="panel-tickets" role="tabpanel" aria-labelledby="tab-tickets">
     <section>
@@ -938,6 +952,11 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
         <div class="card people-card">
           <h3>Personnes pour l'affectation</h3>
           <ul class="chips" id="peopleList"></ul>
+          <details class="archived-people" id="archivedPeople" hidden>
+            <summary>Consultants archivés (<span id="archivedPeopleCount">0</span>)</summary>
+            <p class="help" style="margin:6px 0 8px">Plus proposés à l'affectation ; leurs tickets restent dans les archives et les statistiques.</p>
+            <ul class="chips" id="archivedPeopleList"></ul>
+          </details>
           <form class="row" id="personForm">
             <input type="text" id="personInput" placeholder="Nom de la personne" style="flex:1 1 100%" autocomplete="off">
             <select id="newPole" aria-label="Pôle de la nouvelle personne" style="flex:1 1 110px"></select>
@@ -1038,6 +1057,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       </div>
     </div>
     <div class="pole-legend" style="margin:14px 0 -2px"></div>
+    <p class="date-note" id="archiveDateNote" style="margin:12px 0 -2px"><span><b>Tickets antérieurs au 01/07/2026</b> : la date d'affectation (ou de prise en charge) correspond à la date de création du ticket.</span></p>
     <div class="table-wrap tickets-wrap" id="arSessionsWrap">
       <table id="arTable"><thead></thead><tbody></tbody></table>
     </div>
@@ -1053,10 +1073,11 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       <div class="tabs" role="group" aria-label="Période des statistiques client">
         <button class="tab" type="button" data-cview="month" aria-pressed="true">Mois</button>
         <button class="tab" type="button" data-cview="year" aria-pressed="false">Année</button>
-        <button class="tab" type="button" data-cview="all" aria-pressed="false">Depuis le début</button>
+        <button class="tab" type="button" data-cview="all" aria-pressed="false">Depuis le début <span class="tab-date">01/01/2026</span></button>
       </div>
       <span></span>
     </div>
+    <p class="date-note" id="clientsDateNote"><span><b>Tickets antérieurs au 01/07/2026</b> : la date d'affectation (ou de prise en charge) correspond à la date de création du ticket.</span></p>
     <section>
       <div class="section-head">
         <h2>Tickets par client <span class="tag" id="clientTag"></span></h2>
@@ -1079,7 +1100,6 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
           <span class="client-pct">Part</span>
         </div>
         <ol class="client-chart" id="clientChart"></ol>
-        <button class="link-btn" id="clientMore" type="button" hidden></button>
         <p class="help" style="margin:14px 0 0">Tickets affectés des sessions validées (date d'affectation) et tickets pris par les consultants (date de prise en charge), regroupés par organisation ou par client (bouton «&nbsp;Gérer les clients&nbsp;»).</p>
       </div>
     </section>
@@ -1095,6 +1115,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       </div>
       <span></span>
     </div>
+    <p class="date-note" id="statsDateNote"><span><b>Tickets antérieurs au 01/07/2026</b> : la date d'affectation (ou de prise en charge) correspond à la date de création du ticket.</span></p>
     <section id="statsMonth">
       <div class="section-head">
         <h2>Le mois <span class="tag" id="monthTag"></span></h2>
@@ -1211,7 +1232,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
 
   /* ---------- Données ---------- */
   var UNDO_KEY = 'affectation-undo-v2';
-  function defaults(){ return { columns: [], required: [], tickets: [], archive: [], sessions: [], people: [], taken: [], dateCol: -1, poles: {}, clients: {} }; }
+  function defaults(){ return { columns: [], required: [], tickets: [], archive: [], sessions: [], people: [], taken: [], dateCol: -1, poles: {}, clients: {}, archived: {} }; }
   // Session en cours + tickets archivés : base des statistiques
   function allTickets(){ return state.tickets.concat(state.archive); }
   // Garantit la cohérence du modèle : une case « obligatoire » par colonne, l'identifiant toujours obligatoire
@@ -1223,6 +1244,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     if (!Array.isArray(s.taken)) s.taken = [];
     if (!s.poles || typeof s.poles !== 'object' || Array.isArray(s.poles)) s.poles = {};
     if (!s.clients || typeof s.clients !== 'object' || Array.isArray(s.clients)) s.clients = {};
+    if (!s.archived || typeof s.archived !== 'object' || Array.isArray(s.archived)) s.archived = {};
     s.required = s.columns.map(function(_, i){ return i === 0 || !!s.required[i]; });
     if (s.dateCol >= s.columns.length) s.dateCol = -1;
     s.tickets.concat(s.archive).forEach(function(t){
@@ -1259,6 +1281,9 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     return CONSULTANT_POLES.map(function(p){ return p[0]; }).filter(function(k){ return list.indexOf(k) >= 0; }).slice(0, 1);
   }
   function polesOf(name){ return cleanPoles(state.poles[name]); }
+  // Consultants archivés : plus proposés à l'affectation, conservés pour les archives et les statistiques
+  function isArchived(name){ return !!state.archived[name]; }
+  function activePeople(){ return state.people.filter(function(p){ return !isArchived(p); }); }
   function poleVar(k){ for (var i = 0; i < CONSULTANT_POLES.length; i++) if (CONSULTANT_POLES[i][0] === k) return 'var(--pole-' + CONSULTANT_POLES[i][1] + ')'; return ''; }
   // Classe et style d'une bulle : --pc et --pbg portent la couleur du pôle
   function poleAttr(name){
@@ -1616,6 +1641,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       if (!inv.people[name] && i >= 0) state.people.splice(i, 1);
       var ps = inv.people[name] ? cleanPoles(inv.people[name].poles) : [];
       if (ps.length) state.poles[name] = ps; else delete state.poles[name];
+      if (inv.people[name] && inv.people[name].archived) state.archived[name] = true; else delete state.archived[name];
     });
     Object.keys(inv.sessions || {}).forEach(function(id){
       state.sessions = state.sessions.filter(function(s){ return s.id !== id; });
@@ -1655,6 +1681,8 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
   });
 
   /* ---------- Dates ---------- */
+  var MONTH_WORDS = [['jan'], ['fev', 'feb'], ['mar'], ['avr', 'apr'], ['mai', 'may'], ['juin', 'jun'],
+    ['juil', 'jul'], ['aou', 'aug'], ['sep'], ['oct'], ['nov'], ['dec']];
   function parseDate(v){
     v = String(v || '').trim();
     if (!v) return null;
@@ -1663,6 +1691,11 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     if ((m = v.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/))){
       var y = +m[3]; if (y < 100) y += 2000;
       return new Date(y, +m[2] - 1, +m[1]);
+    }
+    // Mois en lettres : « 8 avr. 2025 », « 8 avril 2025 14:32 », « 08-Apr-25 »
+    if ((m = norm(v).match(/^(\d{1,2})[\s.\-]+([a-z]+)\.?[\s.\-]+(\d{2,4})\b/))){
+      var word = m[2], mo = MONTH_WORDS.findIndex(function(w){ return w.some(function(x){ return word.indexOf(x) === 0; }); });
+      if (mo >= 0){ var yy = +m[3]; if (yy < 100) yy += 2000; return new Date(yy, mo, +m[1]); }
     }
     if (/^\d{5}([.,]\d+)?$/.test(v)){ // numéro de série Excel
       var d = new Date(Date.UTC(1899, 11, 30) + Math.floor(parseFloat(v.replace(',', '.'))) * 864e5);
@@ -1722,12 +1755,30 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     b.addEventListener('click', function(){ shiftYear(+b.dataset.yearShift); });
   });
 
+  /* ---------- Mention « date de création » : seulement si la période affichée commence avant le 01/07/2026 ---------- */
+  var CREATION_CUTOFF = new Date(2026, 6, 1);
+  function beforeCutoff(view){
+    if (view === 'all') return true;
+    return view === 'month' ? new Date(period.y, period.m, 1) < CREATION_CUTOFF : new Date(period.y, 0, 1) < CREATION_CUTOFF;
+  }
+  function renderDateNotes(){
+    var sv = $('panel-stats').querySelector('.view-switch [aria-pressed="true"]');
+    $('statsDateNote').hidden = !beforeCutoff(sv ? sv.dataset.view : 'month');
+    $('clientsDateNote').hidden = !beforeCutoff(clientView);
+    // Archives : dès qu'un ticket de la vue affichée est antérieur à la date
+    var taken = !$('arTakenWrap').hidden;
+    $('archiveDateNote').hidden = !(taken
+      ? state.taken.some(function(t){ var d = t.takenOn ? parseDate(t.takenOn) : null; return d && d < CREATION_CUTOFF; })
+      : state.archive.some(function(t){ var d = statDate(t); return d && d < CREATION_CUTOFF; }));
+  }
+
   /* ---------- Bascule Mois / Année / Année (détail) ---------- */
   var STATS_VIEWS = { month: 'statsMonth', year: 'statsYear', detail: 'statsDetail' };
   function setStatsView(view){
     Object.keys(STATS_VIEWS).forEach(function(v){ $(STATS_VIEWS[v]).hidden = v !== view; });
     $('panel-stats').querySelectorAll('.view-switch .tab').forEach(function(b){ b.setAttribute('aria-pressed', b.dataset.view === view ? 'true' : 'false'); });
     try { localStorage.setItem('affectation-stats-view', view); } catch(e){}
+    renderDateNotes();
     animateBars($('panel-stats'));
   }
   $('panel-stats').querySelector('.view-switch').addEventListener('click', function(e){
@@ -1799,15 +1850,27 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
 
   /* ---------- Rendu : personnes ---------- */
   function renderPeople(){
+    var active = activePeople(), gone = state.people.filter(isArchived);
+    $('tabStatsSub').textContent = plural(active.length, 'consultant', 'consultants');
     var ul = $('peopleList');
-    ul.innerHTML = state.people.length
-      ? state.people.map(function(p, i){
-          var a = poleAttr(p);
+    ul.innerHTML = active.length
+      ? active.map(function(p){
+          var a = poleAttr(p), i = state.people.indexOf(p);
           return '<li class="chip"><button type="button" class="chip-name" data-pi="' + i + '" aria-haspopup="dialog" title="' + esc(a.title ? 'Pôle : ' + a.title : 'Sans pôle') + ' · cliquer pour modifier">' +
             '<i class="pole-dot' + (a.cls ? '' : ' none') + '"' + a.style + '></i>' + esc(p) + '</button>' +
             '<button type="button" data-i="' + i + '" aria-label="Retirer ' + esc(p) + '">×</button></li>';
         }).join('')
       : '<li class="empty">Ajoutez les personnes qui pourront recevoir des tickets.</li>';
+    var box = $('archivedPeople');
+    box.hidden = !gone.length;
+    $('archivedPeopleCount').textContent = gone.length;
+    $('archivedPeopleList').innerHTML = gone.map(function(p){
+      var a = poleAttr(p), i = state.people.indexOf(p);
+      return '<li class="chip archived"><span class="chip-name" title="' + esc(a.title ? 'Pôle : ' + a.title : 'Sans pôle') + '">' +
+          '<i class="pole-dot' + (a.cls ? '' : ' none') + '"' + a.style + '></i>' + esc(p) + '</span>' +
+        '<button type="button" class="chip-restore" data-restore="' + i + '" title="Remettre ' + esc(p) + ' dans le menu d\'affectation">Restaurer</button>' +
+        '<button type="button" data-i="' + i + '" aria-label="Retirer ' + esc(p) + '">×</button></li>';
+    }).join('');
     $('polesMissing').hidden = !db || peopleExtra;
     document.querySelectorAll('.pole-legend').forEach(function(el){ if (!el.innerHTML) el.innerHTML = poleLegendHTML(); });
   }
@@ -1815,6 +1878,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
   $('personForm').addEventListener('submit', function(e){
     e.preventDefault();
     var v = $('personInput').value.trim();
+    if (v && isArchived(v)){ setArchived(v, false); $('personInput').value = ''; return; }
     if (v && state.people.indexOf(v) < 0){
       var ps = $('newPole').value ? [$('newPole').value] : [];
       state.people.push(v);
@@ -1832,6 +1896,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     polePopName = name;
     $('polePopTitle').textContent = 'Pôle de ' + name;
     $('polePopList').innerHTML = polePickHTML('pop', polesOf(name));
+    $('polePopArchive').textContent = 'Archiver ' + name;
     var el = $('polePop'), rc = btn.getBoundingClientRect();
     el.hidden = false;
     el.style.left = Math.min(Math.max(8, rc.left), window.innerWidth - el.offsetWidth - 8) + 'px';
@@ -1846,9 +1911,31 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     if (ps.length) state.poles[name] = cleanPoles(ps); else delete state.poles[name];
     save(); audit('poles_modifies', { nom: name, poles: ps }); renderAll();
   });
+  function setArchived(name, on){
+    if (on && db && !peopleArchive){
+      askConfirm({ title: 'Mise à jour nécessaire', html: '<p class="modal-note">L\'archivage ne sera pas enregistré tant que le script <strong>supabase/007_consultants_archives.sql</strong> n\'a pas été exécuté dans Supabase (SQL Editor). Rechargez ensuite la page.</p>', confirmLabel: 'OK', cancelLabel: false });
+      return;
+    }
+    if (on) state.archived[name] = true; else delete state.archived[name];
+    save(); audit(on ? 'personne_archivee' : 'personne_restauree', { nom: name }); renderAll();
+  }
+  $('polePopArchive').addEventListener('click', function(){
+    var name = polePopName; if (name === null) return;
+    closePolePop();
+    askConfirm({
+      title: 'Archiver ' + name + ' ?',
+      html: '<p class="modal-note">' + esc(name) + ' ne sera plus proposé(e) dans le menu d\'affectation. Ses tickets restent dans les archives et les statistiques. Vous pourrez annuler l\'archivage à tout moment depuis « Consultants archivés ».</p>',
+      confirmLabel: 'Archiver'
+    }).then(function(ok){ if (ok) setArchived(name, true); });
+  });
   document.addEventListener('click', closePolePop);
   document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && polePopName !== null) closePolePop(); });
   window.addEventListener('scroll', closePolePop, true);
+  $('archivedPeopleList').addEventListener('click', function(e){
+    var rb = e.target.closest('button[data-restore]');
+    if (rb){ setArchived(state.people[+rb.dataset.restore], false); return; }
+    var b = e.target.closest('button[data-i]'); if (b) removePerson(state.people[+b.dataset.i]);
+  });
   $('peopleList').addEventListener('click', function(e){
     var nb = e.target.closest('button[data-pi]');
     if (nb){
@@ -1857,12 +1944,13 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       if (polePopName === nm) closePolePop(); else openPolePop(nb, nm);
       return;
     }
-    var b = e.target.closest('button[data-i]'); if (!b) return;
-    var name = state.people[+b.dataset.i];
+    var b = e.target.closest('button[data-i]'); if (b) removePerson(state.people[+b.dataset.i]);
+  });
+  function removePerson(name){
     var n = allTickets().filter(function(t){ return t.assignee === name; }).length;
     function remove(){
       var i = state.people.indexOf(name); if (i < 0) return;
-      state.people.splice(i, 1); delete state.poles[name]; save(); audit('personne_retiree', { nom: name }); renderAll();
+      state.people.splice(i, 1); delete state.poles[name]; delete state.archived[name]; save(); audit('personne_retiree', { nom: name }); renderAll();
     }
     if (!n){ remove(); return; }
     askConfirm({
@@ -1871,7 +1959,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
         '<p class="modal-note">' + esc(name) + ' ne sera plus proposé(e) dans le menu d\'affectation. Ses affectations existantes restent dans les archives et les statistiques.</p>',
       confirmLabel: 'Retirer', tone: 'danger'
     }).then(function(ok){ if (ok) remove(); });
-  });
+  }
 
 
   /* ---------- Rendu : tickets ---------- */
@@ -2075,7 +2163,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     var f = findTicket(b); if (!f) return;
     var id = f.t.id;
     openPicker(b, {
-      current: f.t.assignee || '', people: state.people, counts: sessionLoad(),
+      current: f.t.assignee || '', people: activePeople(), counts: sessionLoad(),
       countTitle: 'Tickets déjà affectés dans la session en cours', firstLabel: 'Non affecté',
       onChoose: function(v){
         for (var i = 0; i < state.tickets.length; i++) if (state.tickets[i].id === id){ setAssignee(state.tickets[i], v); break; }
@@ -2759,9 +2847,9 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       return (a && b ? compareValues(a, b) * s.dir : 0) || x[1] - y[1];
     }).map(function(x){ return x[0]; });
   }
-  function sortTh(which, key, label){
+  function sortTh(which, key, label, title){
     var s = sorts[which], on = s && s.key === String(key);
-    return '<th class="sortable" tabindex="0" data-sort="' + key + '" aria-sort="' + (on ? (s.dir > 0 ? 'ascending' : 'descending') : 'none') + '">' +
+    return '<th class="sortable" tabindex="0" data-sort="' + key + '" aria-sort="' + (on ? (s.dir > 0 ? 'ascending' : 'descending') : 'none') + '"' + (title ? ' title="' + esc(title) + '"' : '') + '>' +
       esc(label) + '<span class="sort-ind" aria-hidden="true">' + (on ? (s.dir > 0 ? '▲' : '▼') : '') + '</span></th>';
   }
   function bindSort(tableId, which, render){
@@ -2799,10 +2887,13 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     renderArchiveTaken();
     var rows = archiveRows(), table = $('arTable'), kinds = columnKinds();
     $('arCount').textContent = rows.length === state.archive.length ? nf.format(rows.length) : nf.format(rows.length) + ' / ' + nf.format(state.archive.length);
-    $('tabArchiveSub').textContent = plural(state.archive.length, 'ticket', 'tickets');
+    // Sous l'onglet : tickets affectés archivés + tickets pris
+    $('tabArchiveSub').textContent = plural(state.archive.length + state.taken.length, 'ticket', 'tickets');
+    renderDateNotes();
+    $('tab-archive').title = plural(state.archive.length, 'ticket affecté', 'tickets affectés') + ' · ' + state.taken.length + ' pris';
     if (!state.columns.length){ table.tHead.innerHTML = ''; table.tBodies[0].innerHTML = '<tr><td class="empty" style="padding:28px">Aucun ticket archivé.</td></tr>'; return; }
     table.tHead.innerHTML = '<tr>' + state.columns.map(function(c, i){ return sortTh('archive', i, c); }).join('') +
-      sortTh('archive', 'assignee', 'Affectation') + sortTh('archive', 'assignedAt', 'Date d\'affectation') +
+      sortTh('archive', 'assignee', 'Affectation') + sortTh('archive', 'assignedAt', 'Date d\'affectation', 'Avant le 01/07/2026 : date de création du ticket') +
       sortTh('archive', 'session', 'Session') + '<th class="no-print"></th></tr>';
     table.tBodies[0].innerHTML = rows.length ? rows.map(function(t){
       return '<tr data-id="' + t.id + '">' + t.cells.map(function(v, i){ return cellHTML(v, i, kinds[i]); }).join('') +
@@ -2819,6 +2910,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     $('arTaken').hidden = $('arTakenWrap').hidden = $('arTakenSessionBox').hidden = !taken;
     $('panel-archive').querySelectorAll('[data-arview]').forEach(function(b){ b.setAttribute('aria-pressed', b.dataset.arview === view ? 'true' : 'false'); });
     try { localStorage.setItem('affectation-archive-view', view); } catch(e){}
+    renderDateNotes();
   }
   $('panel-archive').querySelector('.view-switch').addEventListener('click', function(e){
     var b = e.target.closest('[data-arview]'); if (b) setArchiveView(b.dataset.arview);
@@ -2850,7 +2942,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       return (b.importedAt || '').localeCompare(a.importedAt || '') || (b.takenOn || '').localeCompare(a.takenOn || '') || a.id.localeCompare(b.id, 'fr', { numeric: true });
     });
     $('arTakenCount').textContent = rows.length === state.taken.length ? nf.format(rows.length) : nf.format(rows.length) + ' / ' + nf.format(state.taken.length);
-    $('arTakenTable').tHead.innerHTML = '<tr><th>Identifiant</th><th>Date de prise en charge</th><th>Pôle</th><th>Sujet</th><th>Organisation</th><th>Demandeur</th><th>Consultant</th><th>Session</th></tr>';
+    $('arTakenTable').tHead.innerHTML = '<tr><th>Identifiant</th><th title="Avant le 01/07/2026 : date de création du ticket">Date de prise en charge</th><th>Pôle</th><th>Sujet</th><th>Organisation</th><th>Demandeur</th><th>Consultant</th><th>Session</th></tr>';
     $('arTakenTable').tBodies[0].innerHTML = rows.length ? rows.map(function(t){
       return '<tr><td class="c-id">' + esc(t.id) + '</td>' +
         '<td class="c-date">' + fmtDay(t.takenOn) + '</td>' +
@@ -2990,7 +3082,11 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     var names = people.slice();
     Object.keys(tx).forEach(function(p){ if (names.indexOf(p) < 0) names.push(p); });
     var sumOf = function(arr){ return (arr || zero).reduce(function(a, b){ return a + b; }, 0); };
-    renderTriple('month', names, mx, tx, function(arr){ return arr[period.m]; });
+    // Un consultant archivé n'apparaît que s'il a des tickets sur la période affichée
+    var keep = function(get){ return function(p){ return !isArchived(p) || get(mx[p] || zero) + get(tx[p] || zero) > 0; }; };
+    var ofMonth = function(arr){ return (arr || zero)[period.m]; };
+    renderTriple('month', names.filter(keep(ofMonth)), mx, tx, ofMonth);
+    names = names.filter(keep(sumOf));
     renderTriple('year', names, mx, tx, sumOf);
 
     // Tableau annuel personne × mois : affectations · tickets pris
@@ -3024,7 +3120,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
 
   /* ---------- Statistiques client : tickets prioritaires par organisation ---------- */
   // Même période que les statistiques consultant (mois / année), ou tout l'historique.
-  var clientView = 'month', clientAll = false, CLIENT_TOP = 15;
+  var clientView = 'month';
   try { var cv = localStorage.getItem('affectation-client-view'); if (cv === 'year' || cv === 'all') clientView = cv; } catch(e){}
   function orgColumn(){
     for (var i = 0; i < state.columns.length; i++) if (/organi/i.test(state.columns[i])) return i;
@@ -3055,6 +3151,11 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     state.taken.forEach(function(t){ if (inPeriod(t.takenOn ? parseDate(t.takenOn) : null)) add(t.org, 'p'); });
     // Les tickets sans organisation sont affichés à part, en fin de liste, et exclus des pourcentages
     var none = groups.none; delete groups.none;
+    // Nombre de clients toutes périodes confondues, affiché sous l'onglet
+    var allKeys = {}, keyOf = function(org){ var raw = String(org || '').replace(/\s+/g, ' ').trim(), c = raw ? state.clients[norm(raw)] : null; if (raw) allKeys[c ? 'c:' + norm(c.client) : 'o:' + norm(raw)] = 1; };
+    state.archive.forEach(function(t){ keyOf(col >= 0 ? t.cells[col] : ''); });
+    state.taken.forEach(function(t){ keyOf(t.org); });
+    $('tabClientsSub').textContent = plural(Object.keys(allKeys).length, 'client', 'clients');
     var base = total - (none ? none.n : 0);
     var rows = Object.keys(groups).map(function(k){ return groups[k]; })
       .sort(function(a, b){ return b.n - a.n || a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }); });
@@ -3065,11 +3166,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       tile('Affectés', totA, total ? Math.round(totA / total * 100) + ' % du total' : '', 'k-aff') +
       tile('Pris', totP, total ? Math.round(totP / total * 100) + ' % du total' : '', 'k-self') +
       tile('Clients', rows.length, '') : '';
-    // Au-delà des 15 premiers, les autres clients sont regroupés sur une ligne (sauf « Afficher tous »)
-    var shown = clientAll || rows.length <= CLIENT_TOP + 1 ? rows : rows.slice(0, CLIENT_TOP);
-    var rest = rows.slice(shown.length);
-    var restG = rest.reduce(function(o, g){ o.a += g.a; o.p += g.p; o.n += g.n; return o; }, { a: 0, p: 0, n: 0 });
-    var max = Math.max(top ? top.n : 1, restG.n, none ? none.n : 0);
+    var max = Math.max(top ? top.n : 1, none ? none.n : 0);
     var row = function(name, g, cls, title, noPct){
       var pct = Math.round(g.n / base * 100), pa = g.n ? g.a / g.n * 100 : 0;
       var orgs = g.orgs ? Object.keys(g.orgs).sort(function(a, b){ return a.localeCompare(b, 'fr'); }) : [];
@@ -3081,14 +3178,11 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
           (g.p ? '<span class="seg self" style="width:' + (100 - pa) + '%"></span>' : '') + '</span></span>' +
         '<span class="client-val">' + nf.format(g.n) + '</span><span class="client-pct">' + (noPct ? '' : pct + ' %') + '</span></li>';
     };
-    $('clientChart').innerHTML = total ? shown.map(function(g){ return row(g.name, g, '', g.name); }).join('') +
-      (rest.length ? row('Autres (' + plural(rest.length, 'client', 'clients') + ')', restG, ' other', rest.length + ' autres clients') : '') +
+    $('clientChart').innerHTML = total ? rows.map(function(g){ return row(g.name, g, '', g.name); }).join('') +
       (none ? row('Sans organisation', none, ' other', 'Tickets sans organisation (non comptés dans les pourcentages)', true) : '')
       : '<li class="empty">Aucun ticket sur cette période.</li>';
     document.querySelector('.client-head').hidden = !total;
-    var more = $('clientMore');
-    more.hidden = rows.length <= CLIENT_TOP + 1;
-    more.textContent = clientAll ? 'Afficher les ' + CLIENT_TOP + ' premiers seulement' : 'Afficher les ' + rows.length + ' clients';
+    renderDateNotes();
     if (!$('panel-clients').hidden) animateBars($('panel-clients'));
   }
   $('panel-clients').querySelector('.view-switch').addEventListener('click', function(e){
@@ -3103,7 +3197,6 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       if (clientView === 'month') setPeriod(period.y, period.m + d); else setPeriod(period.y + d, period.m);
     });
   });
-  $('clientMore').addEventListener('click', function(){ clientAll = !clientAll; renderClients(); });
 
   /* ---------- Fenêtre « Clients » : regrouper des organisations sous un client ---------- */
   var cEdit = null, clientsReturnFocus = null; // cEdit : { from: nom d'origine ou null, name, checked: {clé: nom}, q }
@@ -3595,7 +3688,12 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
   function clientRow(k){ var c = state.clients[k]; return { org_key: k, org: c.org, client: c.client }; }
   var hasSettingsRow = false;
   var peopleExtra = true; // false tant que la mise à jour 004 (pôles) n'a pas été exécutée
-  function personRow(name){ return peopleExtra ? { name: name, poles: polesOf(name) } : { name: name }; }
+  var peopleArchive = true; // false tant que la mise à jour 007 (archivage) n'a pas été exécutée
+  function personRow(name){
+    var row = peopleExtra ? { name: name, poles: polesOf(name) } : { name: name };
+    if (peopleArchive) row.archived = isArchived(name);
+    return row;
+  }
   var queue = Promise.resolve(), pending = 0;
 
   function settingsRow(){ return { id: 1, columns: state.columns, required: state.required, date_col: state.dateCol }; }
@@ -3742,6 +3840,8 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     if (s){ next.columns = s.columns || []; next.required = s.required || []; next.dateCol = s.date_col == null ? -1 : s.date_col; }
     next.people = res[1].map(function(p){ return p.name; });
     peopleExtra = !(await db.from('people').select('poles').limit(1)).error;
+    peopleArchive = !(await db.from('people').select('archived').limit(1)).error;
+    res[1].forEach(function(p){ if (p.archived) next.archived[p.name] = true; });
     res[1].forEach(function(p){ var ps = cleanPoles(p.poles); if (ps.length) next.poles[p.name] = ps; });
     next.sessions = res[2].map(function(r){ return { id: r.id, at: r.at }; });
     res[3].forEach(function(r){ var t = ticketFromRow(r); (t.sessionId ? next.archive : next.tickets).push(t); });
@@ -3800,11 +3900,12 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'people' }, function(p){
         var name = p.eventType === 'DELETE' ? p.old && p.old.name : p['new'].name, i = state.people.indexOf(name);
-        if (p.eventType === 'DELETE'){ if (i >= 0) state.people.splice(i, 1); delete synced.people[name]; }
+        if (p.eventType === 'DELETE'){ if (i >= 0) state.people.splice(i, 1); delete state.archived[name]; delete synced.people[name]; }
         else {
           if (i < 0) state.people.push(name);
           var ps = cleanPoles(p['new'].poles);
           if (ps.length) state.poles[name] = ps; else delete state.poles[name];
+          if (p['new'].archived) state.archived[name] = true; else delete state.archived[name];
           synced.people[name] = JSON.stringify(personRow(name));
         }
         scheduleRender();
@@ -3856,7 +3957,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     modele_modifie: 'Modèle de colonnes modifié', tickets_vides: 'Tickets vidés', sauvegarde_restauree: 'Sauvegarde restaurée',
     donnees_locales_envoyees: 'Données de l\'ancienne version envoyées', annulation: 'Annulation',
     ticket_supprime: 'Ticket supprimé', ticket_desarchive: 'Ticket remis en session', ticket_ajoute: 'Ticket ajouté',
-    personne_ajoutee: 'Personne ajoutée', personne_retiree: 'Personne retirée', poles_modifies: 'Pôle modifié',
+    personne_ajoutee: 'Personne ajoutée', personne_retiree: 'Personne retirée', personne_archivee: 'Consultant archivé', personne_restauree: 'Consultant restauré', poles_modifies: 'Pôle modifié',
     client_enregistre: 'Client enregistré', client_supprime: 'Client supprimé'
   };
   function auditText(a, d){
@@ -3873,7 +3974,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
         return plural(d.tickets || 0, 'ticket en cours', 'tickets en cours') + ', ' + plural(d.archives || 0, 'archivé', 'archivés');
       case 'annulation': return d.operation || '';
       case 'ticket_supprime': case 'ticket_desarchive': case 'ticket_ajoute': return d.ticket || '';
-      case 'personne_ajoutee': case 'personne_retiree': return d.nom || '';
+      case 'personne_ajoutee': case 'personne_retiree': case 'personne_archivee': case 'personne_restauree': return d.nom || '';
       case 'client_enregistre': case 'client_supprime': return (d.client || '') + ' · ' + plural(d.organisations || 0, 'organisation', 'organisations');
       case 'poles_modifies': return (d.nom || '') + ((d.poles || []).length ? ' · ' + d.poles.join(', ') : ' · sans pôle');
       default: return '';
