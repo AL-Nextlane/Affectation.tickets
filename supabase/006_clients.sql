@@ -24,4 +24,11 @@ create policy client_orgs_update on public.client_orgs for update to authenticat
   using (public.is_member()) with check (public.is_member());
 create policy client_orgs_delete on public.client_orgs for delete to authenticated using (public.is_member());
 
-alter publication supabase_realtime add table public.client_orgs;
+-- Mise à jour en direct (sans erreur si la table y est déjà, en cas de seconde exécution)
+do $$
+begin
+  if not exists (select 1 from pg_publication_tables
+                 where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'client_orgs') then
+    alter publication supabase_realtime add table public.client_orgs;
+  end if;
+end $$;
