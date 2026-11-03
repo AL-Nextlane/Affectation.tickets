@@ -582,18 +582,87 @@ td input[type=date]{padding:4px 8px}
 .yc-sample b{display:block;font-size:14px;line-height:1.1;color:var(--text)}
 .yc-sample small{font-size:10.5px}
 
+/* Statistiques client : barres horizontales, une couleur (volume), valeur en bout de ligne */
+.client-sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:20px}
+.client-sum>div{display:grid;gap:2px;align-content:start;background:var(--surface-2);border-radius:12px;padding:12px 14px;font-size:12px;color:var(--muted)}
+.client-sum .k{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.client-sum b{font-size:24px;font-weight:600;color:var(--text);line-height:1.2;font-variant-numeric:tabular-nums}
+.client-sum .k-aff{color:var(--accent)}
+.client-sum .k-self{color:var(--gold)}
+.client-row.client-head{padding-top:0;padding-bottom:8px;margin-bottom:4px;border-bottom:1px solid var(--line);border-radius:0;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.client-row.client-head:hover{background:transparent}
+.client-head .client-val,.client-head .client-pct{font-weight:600;font-size:11px;color:var(--muted)}
+.client-chart{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+.client-row{display:grid;grid-template-columns:minmax(120px,260px) 1fr 44px 52px;align-items:center;gap:12px;padding:5px 8px;border-radius:8px;font-size:13.5px}
+.client-row:hover{background:var(--surface-2)}
+.client-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.client-row .track{display:block;height:12px;background:transparent;border-radius:0 4px 4px 0}
+.client-row .fill{display:block;background:var(--accent);border-radius:0 4px 4px 0;min-width:2px}
+.client-row:hover .fill{filter:brightness(1.12)}
+/* Nombre et pourcentage dans deux colonnes alignées à droite ; le % en retrait, séparé par un filet */
+.client-val{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.client-pct{text-align:right;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;border-left:1px solid var(--line);padding-left:8px}
+.client-row.other .client-name{color:var(--muted);font-style:italic}
+.client-row .fill.split{gap:2px;background:transparent}
+.client-row .seg:first-child{border-radius:0}
+.client-row .seg:last-child{border-radius:0 4px 4px 0}
+.client-row.other .seg{opacity:.45}
+.client-grp{margin-left:6px;font-size:11px;font-weight:400;color:var(--muted)}
+/* Fenêtre « Clients » : liste des clients à gauche, édition à droite */
+.modal.clients-modal{width:min(980px,100%);height:calc(100vh - 32px);display:flex;flex-direction:column;overflow:hidden}
+.clients-body{flex:1;min-height:0;display:grid;grid-template-columns:260px 1fr;gap:18px}
+@media (max-width:720px){.clients-body{grid-template-columns:1fr;overflow-y:auto}}
+.clients-side{display:flex;flex-direction:column;gap:12px;min-height:0;overflow-y:auto}
+.clients-list{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.clients-list button{width:100%;text-align:left;display:grid;gap:1px;background:var(--surface-2);border:1px solid transparent;border-radius:10px;padding:8px 10px;cursor:pointer;color:var(--text);font:inherit}
+.clients-list button:hover{border-color:var(--line)}
+.clients-list button.on{border-color:var(--accent);background:var(--accent-soft)}
+.clients-list strong{font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.clients-list span{font-size:12px;color:var(--muted)}
+.client-sugg{display:flex;flex-wrap:wrap;gap:6px}
+.client-sugg button{border:1px dashed var(--line);background:transparent;color:var(--text);border-radius:999px;padding:3px 10px;font-size:12px;cursor:pointer}
+.client-sugg button:hover{border-color:var(--accent);color:var(--accent)}
+.clients-edit{display:flex;flex-direction:column;gap:10px;min-height:0}
+.clients-edit label{display:grid;gap:4px;font-size:12px;font-weight:500;color:var(--muted)}
+.clients-edit input[type=text],.clients-edit input[type=search]{font-size:13.5px}
+.org-tools{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:12.5px;color:var(--muted)}
+.org-list{flex:1;min-height:120px;overflow-y:auto;list-style:none;margin:0;padding:4px;border:1px solid var(--line);border-radius:12px}
+.org-list label{display:grid;grid-template-columns:18px 1fr auto;align-items:center;gap:8px;padding:5px 8px;border-radius:8px;font-size:13px;font-weight:400;color:var(--text);cursor:pointer}
+.org-list label:hover{background:var(--surface-2)}
+.org-list .org-n{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.org-list .org-other{font-size:11.5px;color:var(--gold);margin-left:6px}
+.org-list label.is-taken{cursor:not-allowed;opacity:.6}
+.org-list label.is-taken:hover{background:transparent}
+.clients-actions{display:flex;justify-content:space-between;gap:8px}
+.client-saved{margin:0;padding:8px 12px;border-radius:10px;background:color-mix(in srgb,#1f9d55 12%,var(--surface));border:1px solid color-mix(in srgb,#1f9d55 40%,var(--line));color:var(--text);font-size:13px;font-weight:600}
+.client-legend{display:flex;gap:16px;font-size:11.5px;font-weight:500;text-transform:none;letter-spacing:0;color:var(--muted)}
+.client-legend span{display:inline-flex;align-items:center;gap:6px}
+.client-legend i{display:inline-block;width:10px;height:10px;border-radius:3px}
+#clientMore{margin-top:10px;font-size:13px}
+@media (max-width:600px){.client-row{grid-template-columns:minmax(90px,1fr) 1fr 36px 46px;gap:8px}}
 .view-switch{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;margin:-6px 0 8px}
 @media (max-width:640px){.view-switch{grid-template-columns:1fr}.view-switch>span:first-child{display:none}}
 .taken-panel{margin-bottom:20px}
 .taken-panel[hidden]{display:none}
-.taken-map{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin:12px 0}
-.taken-map label{display:grid;gap:4px;font-size:12px;font-weight:600;color:var(--muted)}
-.taken-map select{font-size:13px;padding:5px 8px}
+/* Correspondance des colonnes : une case par information, la colonne collée choisie en dessous */
+.taken-map{margin:14px 0;padding:12px;border-radius:14px;background:var(--surface-2)}
+.taken-map .map-title{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin:0 0 10px;font-size:12.5px;font-weight:600;color:var(--text)}
+.taken-map .map-title span{font-weight:400;color:var(--muted)}
+.map-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(138px,1fr));gap:8px}
+.map-field{display:grid;gap:5px;align-content:start;white-space:nowrap;min-width:0;padding:8px 10px;border-radius:10px;background:var(--surface);border:1px solid var(--line);font-size:11.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.map-field.is-set{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
+.map-field.is-set .map-name{color:var(--accent)}
+.map-field.is-off{background:transparent;border-style:dashed}
+.map-field .req{margin-left:4px;color:var(--danger);text-transform:none;letter-spacing:0}
+.map-field select{width:100%;min-width:0;font-size:13px;padding:6px 28px 6px 9px;text-transform:none;letter-spacing:0;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.map-field.is-off select{color:var(--muted)}
 #takenTable{font-size:12.5px}
 #takenTable th,#takenTable td{padding:6px 8px}
 .taken-scroll{max-height:60vh;overflow:auto}
 #takenTable td.c-long{min-width:260px}
 #takenTable td.c-extra{max-width:260px;overflow:hidden;text-overflow:ellipsis}
+#takenTable th.ignored,#takenTable td.ignored{color:var(--muted);opacity:.55;text-decoration:line-through}
+#takenTable th.ignored small{display:block;font-size:10px;text-decoration:none;text-transform:none;letter-spacing:0}
 #takenTable th{position:sticky;top:0;z-index:1;box-shadow:inset 0 -1px 0 var(--line);border-bottom:0}
 #takenTable tr.r-skip td:not(:first-child){opacity:.45}
 #takenTable tr.r-skip td{background:var(--danger-soft)}
@@ -632,6 +701,8 @@ td input[type=date]{padding:4px 8px}
 #arCount{background:var(--accent-soft);color:var(--accent)}
 #arTakenCount{background:var(--gold-soft);color:var(--text)}
 .period .btn{padding:4px 12px}
+#clientNav select{font-size:13.5px;padding:5px 30px 5px 10px;min-width:0}
+#clientNav[hidden],#clientNav select[hidden],.client-head[hidden]{display:none}
 .period{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:14px;color:var(--muted)}
 /* Choix du mois (Statistiques) */
 .month-pick{position:relative;gap:6px}
@@ -774,6 +845,25 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
   </div>
 </div>
 
+<div class="modal-overlay no-print" id="clientsOverlay" hidden>
+  <div class="modal clients-modal" role="dialog" aria-modal="true" aria-labelledby="clientsTitle">
+    <div class="audit-head">
+      <h2 id="clientsTitle">Clients</h2>
+      <button class="link-btn" id="clientsClose" type="button">Fermer</button>
+    </div>
+    <p class="help" style="margin:0 0 12px">Un client regroupe plusieurs organisations : dans les statistiques, leurs tickets sont additionnés sur une seule ligne. Une organisation n'appartient qu'à un client.</p>
+    <p class="msg err-text" id="clientsMissing" hidden>La table des clients n'existe pas encore : exécutez <strong>supabase/006_clients.sql</strong> dans Supabase, puis rechargez la page.</p>
+    <div class="clients-body">
+      <div class="clients-side">
+        <button class="btn primary" type="button" id="clientNew">Nouveau client</button>
+        <div id="clientSuggest"></div>
+        <div><p class="modal-kicker">Clients</p><ul class="clients-list" id="clientsList"></ul></div>
+      </div>
+      <div class="clients-edit" id="clientEdit"></div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay no-print" id="modalOverlay" hidden>
   <div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="modalBody">
     <h2 id="modalTitle"></h2>
@@ -800,7 +890,8 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     <div class="tabs" role="tablist">
       <button class="tab" role="tab" id="tab-tickets" aria-controls="panel-tickets" aria-selected="true">Tickets<small id="tabTicketsSub">0 ligne</small></button>
       <button class="tab" role="tab" id="tab-archive" aria-controls="panel-archive" aria-selected="false">Archives<small id="tabArchiveSub">0 ticket</small></button>
-      <button class="tab" role="tab" id="tab-stats" aria-controls="panel-stats" aria-selected="false">Statistiques<small>Mois et année</small></button>
+      <button class="tab" role="tab" id="tab-stats" aria-controls="panel-stats" aria-selected="false">Statistiques consultant<small>Mois et année</small></button>
+      <button class="tab" role="tab" id="tab-clients" aria-controls="panel-clients" aria-selected="false">Statistiques client<small>Par organisation</small></button>
     </div>
     <div class="banner" id="banner" aria-label="L'essentiel"></div>
   </div>
@@ -915,7 +1006,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
         <div class="order-hint">
           <span class="order-title">Ordre des colonnes à respecter</span>
           <ol class="order-list"><li>ID</li><li>Affecté</li><li>{{dc.ticket_field_category-0}}</li><li>Sujet</li><li>Organisation</li><li>Demandeur</li><li>Assigné</li></ol>
-          <span class="order-note">Supprimez toutes les autres colonnes de l’export avant de copier.</span>
+          <span class="order-note">Seul l’ID est obligatoire. Avec la ligne d’en-têtes, vous pouvez ne coller que certaines colonnes (par exemple ID et Organisation) : les colonnes inconnues sont ignorées, et chaque colonne peut être ignorée ci-dessous.</span>
         </div>
         <textarea id="takenPaste" placeholder="Copiez les tickets dans Excel dans l'ordre ci-dessus, puis collez ici…"></textarea>
         <div id="takenPreview" hidden>
@@ -956,6 +1047,44 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
   </div>
 
   <!-- Onglet Statistiques -->
+  <div id="panel-clients" role="tabpanel" aria-labelledby="tab-clients" hidden>
+    <div class="view-switch no-print">
+      <span></span>
+      <div class="tabs" role="group" aria-label="Période des statistiques client">
+        <button class="tab" type="button" data-cview="month" aria-pressed="true">Mois</button>
+        <button class="tab" type="button" data-cview="year" aria-pressed="false">Année</button>
+        <button class="tab" type="button" data-cview="all" aria-pressed="false">Depuis le début</button>
+      </div>
+      <span></span>
+    </div>
+    <section>
+      <div class="section-head">
+        <h2>Tickets par client <span class="tag" id="clientTag"></span></h2>
+        <div class="row">
+        <button class="btn" type="button" id="clientsBtn" style="white-space:nowrap" title="Regrouper plusieurs organisations sous un même client">Gérer les clients</button>
+        <div class="period" id="clientNav">
+          <button class="btn" type="button" data-client-shift="-1" aria-label="Période précédente">‹</button>
+          <select id="clientMonth" aria-label="Mois"></select>
+          <select id="clientYear" aria-label="Année"></select>
+          <button class="btn" type="button" data-client-shift="1" aria-label="Période suivante">›</button>
+        </div>
+        </div>
+      </div>
+      <div class="card client-card">
+        <div class="client-sum" id="clientSum"></div>
+        <div class="client-row client-head" aria-hidden="true">
+          <span>Client</span>
+          <span class="client-legend"><span><i class="seg aff"></i>Tickets affectés</span><span><i class="seg self"></i>Tickets pris</span></span>
+          <span class="client-val">Tickets</span>
+          <span class="client-pct">Part</span>
+        </div>
+        <ol class="client-chart" id="clientChart"></ol>
+        <button class="link-btn" id="clientMore" type="button" hidden></button>
+        <p class="help" style="margin:14px 0 0">Tickets affectés des sessions validées (date d'affectation) et tickets pris par les consultants (date de prise en charge), regroupés par organisation ou par client (bouton «&nbsp;Gérer les clients&nbsp;»).</p>
+      </div>
+    </section>
+  </div>
+
   <div id="panel-stats" role="tabpanel" aria-labelledby="tab-stats" hidden>
     <div class="view-switch no-print">
       <span></span>
@@ -1082,7 +1211,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
 
   /* ---------- Données ---------- */
   var UNDO_KEY = 'affectation-undo-v2';
-  function defaults(){ return { columns: [], required: [], tickets: [], archive: [], sessions: [], people: [], taken: [], dateCol: -1, poles: {} }; }
+  function defaults(){ return { columns: [], required: [], tickets: [], archive: [], sessions: [], people: [], taken: [], dateCol: -1, poles: {}, clients: {} }; }
   // Session en cours + tickets archivés : base des statistiques
   function allTickets(){ return state.tickets.concat(state.archive); }
   // Garantit la cohérence du modèle : une case « obligatoire » par colonne, l'identifiant toujours obligatoire
@@ -1093,6 +1222,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     if (!Array.isArray(s.sessions)) s.sessions = [];
     if (!Array.isArray(s.taken)) s.taken = [];
     if (!s.poles || typeof s.poles !== 'object' || Array.isArray(s.poles)) s.poles = {};
+    if (!s.clients || typeof s.clients !== 'object' || Array.isArray(s.clients)) s.clients = {};
     s.required = s.columns.map(function(_, i){ return i === 0 || !!s.required[i]; });
     if (s.dateCol >= s.columns.length) s.dateCol = -1;
     s.tickets.concat(s.archive).forEach(function(t){
@@ -1498,6 +1628,10 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     });
     Object.keys(inv.tickets || {}).forEach(function(id){
       if (inv.tickets[id]) putTicket(ticketFromRow(inv.tickets[id])); else dropTicket(id);
+    });
+    Object.keys(inv.clients || {}).forEach(function(k){
+      var c = inv.clients[k];
+      if (c) state.clients[k] = { org: c.org, client: c.client }; else delete state.clients[k];
     });
     state = normalize(state);
   }
@@ -2884,8 +3018,292 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     $('yearTable').innerHTML = th + '<tbody>' + (body || '<tr><td colspan="14" class="empty" style="text-align:left">Aucune personne pour l\'instant.</td></tr>') + '</tbody>' + foot;
 
     if (!$('panel-stats').hidden) animateBars($('panel-stats'));
+    renderClients(); // les statistiques client suivent les mêmes données (imports, annulations, temps réel)
   }
 
+
+  /* ---------- Statistiques client : tickets prioritaires par organisation ---------- */
+  // Même période que les statistiques consultant (mois / année), ou tout l'historique.
+  var clientView = 'month', clientAll = false, CLIENT_TOP = 15;
+  try { var cv = localStorage.getItem('affectation-client-view'); if (cv === 'year' || cv === 'all') clientView = cv; } catch(e){}
+  function orgColumn(){
+    for (var i = 0; i < state.columns.length; i++) if (/organi/i.test(state.columns[i])) return i;
+    return -1;
+  }
+  function renderClients(){
+    var col = orgColumn();
+    $('panel-clients').querySelectorAll('[data-cview]').forEach(function(b){ b.setAttribute('aria-pressed', b.dataset.cview === clientView ? 'true' : 'false'); });
+    $('clientNav').hidden = clientView === 'all';
+    renderClientPickers();
+    $('clientTag').textContent = clientView === 'month' ? MONTHS[period.m] + ' ' + period.y : clientView === 'year' ? String(period.y) : 'Tout';
+    var inPeriod = function(d){
+      return clientView === 'all' || (d && d.getFullYear() === period.y && (clientView === 'year' || d.getMonth() === period.m));
+    };
+    // Tickets affectés (archives, date d'affectation) + tickets pris (date de prise en charge), par organisation.
+    // Regroupement insensible à la casse et aux espaces ; on affiche la première orthographe rencontrée.
+    var groups = {}, total = 0, totA = 0, totP = 0;
+    // Une organisation rattachée à un client compte pour ce client
+    var add = function(org, kind){
+      var raw = String(org || '').replace(/\s+/g, ' ').trim(), name = raw || 'Sans organisation';
+      var c = raw ? state.clients[norm(raw)] : null, k = !raw ? 'none' : c ? 'c:' + norm(c.client) : 'o:' + norm(raw);
+      var g = groups[k] = groups[k] || { name: c ? c.client : name, a: 0, p: 0, n: 0, orgs: c ? {} : null };
+      if (g.orgs) g.orgs[name] = 1;
+      g[kind]++; g.n++; total++;
+      if (kind === 'a') totA++; else totP++;
+    };
+    state.archive.forEach(function(t){ if (inPeriod(statDate(t))) add(col >= 0 ? t.cells[col] : '', 'a'); });
+    state.taken.forEach(function(t){ if (inPeriod(t.takenOn ? parseDate(t.takenOn) : null)) add(t.org, 'p'); });
+    // Les tickets sans organisation sont affichés à part, en fin de liste, et exclus des pourcentages
+    var none = groups.none; delete groups.none;
+    var base = total - (none ? none.n : 0);
+    var rows = Object.keys(groups).map(function(k){ return groups[k]; })
+      .sort(function(a, b){ return b.n - a.n || a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }); });
+    var top = rows[0];
+    var tile = function(label, n, sub, cls){ return '<div><span class="k' + (cls ? ' ' + cls : '') + '">' + label + '</span><b>' + nf.format(n) + '</b>' + (sub ? '<span>' + sub + '</span>' : '') + '</div>'; };
+    $('clientSum').innerHTML = total ?
+      tile('Tickets', total, none ? nf.format(none.n) + ' sans organisation' : '') +
+      tile('Affectés', totA, total ? Math.round(totA / total * 100) + ' % du total' : '', 'k-aff') +
+      tile('Pris', totP, total ? Math.round(totP / total * 100) + ' % du total' : '', 'k-self') +
+      tile('Clients', rows.length, '') : '';
+    // Au-delà des 15 premiers, les autres clients sont regroupés sur une ligne (sauf « Afficher tous »)
+    var shown = clientAll || rows.length <= CLIENT_TOP + 1 ? rows : rows.slice(0, CLIENT_TOP);
+    var rest = rows.slice(shown.length);
+    var restG = rest.reduce(function(o, g){ o.a += g.a; o.p += g.p; o.n += g.n; return o; }, { a: 0, p: 0, n: 0 });
+    var max = Math.max(top ? top.n : 1, restG.n, none ? none.n : 0);
+    var row = function(name, g, cls, title, noPct){
+      var pct = Math.round(g.n / base * 100), pa = g.n ? g.a / g.n * 100 : 0;
+      var orgs = g.orgs ? Object.keys(g.orgs).sort(function(a, b){ return a.localeCompare(b, 'fr'); }) : [];
+      return '<li class="client-row' + cls + '" title="' + esc(title) + ' : ' + plural(g.n, 'ticket', 'tickets') + (noPct ? '' : ' (' + pct + ' %)') + ' · ' +
+          plural(g.a, 'affecté', 'affectés') + ', ' + g.p + ' pris' + (orgs.length ? '\n' + orgs.join('\n') : '') + '">' +
+        '<span class="client-name">' + esc(name) + (g.orgs ? '<span class="client-grp">· ' + orgs.length + ' org.</span>' : '') + '</span>' +
+        '<span class="track"><span class="fill split" data-v="' + g.n + '" data-max="' + max + '">' +
+          (g.a ? '<span class="seg aff" style="width:' + pa + '%"></span>' : '') +
+          (g.p ? '<span class="seg self" style="width:' + (100 - pa) + '%"></span>' : '') + '</span></span>' +
+        '<span class="client-val">' + nf.format(g.n) + '</span><span class="client-pct">' + (noPct ? '' : pct + ' %') + '</span></li>';
+    };
+    $('clientChart').innerHTML = total ? shown.map(function(g){ return row(g.name, g, '', g.name); }).join('') +
+      (rest.length ? row('Autres (' + plural(rest.length, 'client', 'clients') + ')', restG, ' other', rest.length + ' autres clients') : '') +
+      (none ? row('Sans organisation', none, ' other', 'Tickets sans organisation (non comptés dans les pourcentages)', true) : '')
+      : '<li class="empty">Aucun ticket sur cette période.</li>';
+    document.querySelector('.client-head').hidden = !total;
+    var more = $('clientMore');
+    more.hidden = rows.length <= CLIENT_TOP + 1;
+    more.textContent = clientAll ? 'Afficher les ' + CLIENT_TOP + ' premiers seulement' : 'Afficher les ' + rows.length + ' clients';
+    if (!$('panel-clients').hidden) animateBars($('panel-clients'));
+  }
+  $('panel-clients').querySelector('.view-switch').addEventListener('click', function(e){
+    var b = e.target.closest('[data-cview]'); if (!b) return;
+    clientView = b.dataset.cview;
+    try { localStorage.setItem('affectation-client-view', clientView); } catch(e){}
+    renderClients();
+  });
+  document.querySelectorAll('[data-client-shift]').forEach(function(b){
+    b.addEventListener('click', function(){
+      var d = +b.dataset.clientShift;
+      if (clientView === 'month') setPeriod(period.y, period.m + d); else setPeriod(period.y + d, period.m);
+    });
+  });
+  $('clientMore').addEventListener('click', function(){ clientAll = !clientAll; renderClients(); });
+
+  /* ---------- Fenêtre « Clients » : regrouper des organisations sous un client ---------- */
+  var cEdit = null, clientsReturnFocus = null; // cEdit : { from: nom d'origine ou null, name, checked: {clé: nom}, q }
+  // Toutes les organisations présentes dans les tickets (session, archives, tickets pris), avec leur nombre de tickets
+  function knownOrgs(){
+    var col = orgColumn(), out = {};
+    var see = function(org){
+      var name = String(org || '').replace(/\s+/g, ' ').trim(); if (!name) return;
+      var k = norm(name), o = out[k] = out[k] || { key: k, name: name, n: 0 };
+      o.n++;
+    };
+    if (col >= 0) allTickets().forEach(function(t){ see(t.cells[col]); });
+    state.taken.forEach(function(t){ see(t.org); });
+    Object.keys(state.clients).forEach(function(k){ if (!out[k]) out[k] = { key: k, name: state.clients[k].org, n: 0 }; });
+    return out;
+  }
+  function clientNames(){
+    var by = {};
+    Object.keys(state.clients).forEach(function(k){ var c = state.clients[k].client; by[c] = (by[c] || 0) + 1; });
+    return Object.keys(by).sort(function(a, b){ return a.localeCompare(b, 'fr'); }).map(function(c){ return { name: c, n: by[c] }; });
+  }
+  function startEdit(name, preset, q, newName){
+    var checked = {};
+    if (name) Object.keys(state.clients).forEach(function(k){ if (state.clients[k].client === name) checked[k] = state.clients[k].org; });
+    (preset || []).forEach(function(o){ if (!otherClient(o.key, name || null)) checked[o.key] = o.name; });
+    cEdit = { from: name || null, name: name || newName || '', checked: checked, q: q || '' };
+    cEdit.initial = editSig();
+    renderClientsModal();
+    var inp = $('cName'); if (inp && !name) inp.focus();
+  }
+  // Client auquel une organisation est déjà rattachée, s'il est différent de celui en cours d'édition
+  function otherClient(k, from){ var c = state.clients[k]; return c && c.client !== from ? c.client : ''; }
+  function editSig(){ return cEdit ? cEdit.name.trim() + '|' + Object.keys(cEdit.checked).sort().join(',') : ''; }
+  function editDirty(){ return !!cEdit && editSig() !== cEdit.initial && (!!cEdit.name.trim() || Object.keys(cEdit.checked).length > 0); }
+  // Avant de quitter une saisie non enregistrée, on demande confirmation
+  function leaveEdit(then){
+    if (!editDirty()){ then(); return; }
+    askConfirm({
+      title: 'Abandonner la saisie en cours ?',
+      html: '<p class="modal-note">' + (cEdit.from ? 'Les modifications du client « ' + esc(cEdit.from) + ' »' : 'Le nouveau client') + ' ne seront pas enregistrées.</p>',
+      confirmLabel: 'Abandonner', cancelLabel: 'Continuer la saisie', tone: 'danger'
+    }).then(function(ok){ if (ok) then(); });
+  }
+  function renderClientsModal(){
+    var orgs = knownOrgs(), list = clientNames();
+    $('clientsMissing').hidden = !(db && !clientsAvailable);
+    $('clientsList').innerHTML = list.length ? list.map(function(c){
+      return '<li><button type="button" data-client="' + esc(c.name) + '"' + (cEdit && cEdit.from === c.name ? ' class="on"' : '') + '><strong>' + esc(c.name) + '</strong><span>' + plural(c.n, 'organisation', 'organisations') + '</span></button></li>';
+    }).join('') : '<li class="help" style="margin:0">Aucun client pour l\'instant.</li>';
+    // Suggestions : organisations libres qui commencent par le même mot
+    var words = {};
+    Object.keys(orgs).forEach(function(k){
+      if (state.clients[k]) return;
+      var w = (orgs[k].name.match(/[A-Za-zÀ-ÿ0-9]{3,}/) || [])[0]; if (!w) return;
+      var wk = norm(w); (words[wk] = words[wk] || { word: w, orgs: [] }).orgs.push(orgs[k]);
+    });
+    var sugg = Object.keys(words).map(function(k){ return words[k]; }).filter(function(g){ return g.orgs.length > 1; })
+      .sort(function(a, b){ return b.orgs.length - a.orgs.length; }).slice(0, 10);
+    $('clientSuggest').innerHTML = sugg.length ? '<p class="modal-kicker">Suggestions</p><div class="client-sugg">' + sugg.map(function(g){
+      return '<button type="button" data-sugg="' + esc(norm(g.word)) + '" title="' + esc(g.orgs.map(function(o){ return o.name; }).join('\n')) + '">' + esc(g.word.toUpperCase()) + ' · ' + g.orgs.length + '</button>';
+    }).join('') + '</div>' : '';
+    $('clientSuggest')._groups = words;
+    var ed = $('clientEdit');
+    if (!cEdit){ ed.innerHTML = '<p class="help" style="margin:auto;text-align:center">Choisissez un client à gauche, ou créez-en un.</p>'; return; }
+    var q = norm(cEdit.q);
+    // Ordre : cochées, puis libres, puis déjà rattachées à un autre client
+    var rank = function(o){ return cEdit.checked[o.key] ? 0 : state.clients[o.key] && state.clients[o.key].client !== cEdit.from ? 2 : 1; };
+    var all = Object.keys(orgs).map(function(k){ return orgs[k]; })
+      .sort(function(a, b){ return rank(a) - rank(b) || a.name.localeCompare(b.name, 'fr'); });
+    var shown = all.filter(function(o){ return !q || norm(o.name).indexOf(q) >= 0; });
+    var nChecked = Object.keys(cEdit.checked).length;
+    var free = shown.filter(function(o){ return !otherClient(o.key, cEdit.from) && !cEdit.checked[o.key]; });
+    ed.innerHTML = (cEdit.saved ? '<p class="msg client-saved" role="status">✓ ' + esc(cEdit.saved) + '</p>' : '') +
+      '<p class="modal-kicker" style="margin:0">' + (cEdit.from ? 'Modifier le client « ' + esc(cEdit.from) + ' »' : 'Nouveau client') + '</p>' +
+      '<label>Nom du client <input type="text" id="cName" value="' + esc(cEdit.name) + '" placeholder="ex. CHOPARD" autocomplete="off"></label>' +
+      '<label>Organisations <input type="search" id="cSearch" value="' + esc(cEdit.q) + '" placeholder="Rechercher une organisation…"></label>' +
+      '<div class="org-tools"><span>' + plural(nChecked, 'organisation cochée', 'organisations cochées') + '</span>' +
+        (q && free.length ? '<button type="button" class="link-btn" id="cCheckAll">Cocher les ' + free.length + ' résultats</button>' : '') + '</div>' +
+      '<ul class="org-list" id="cOrgs">' + (shown.length ? shown.map(function(o){
+        var other = otherClient(o.key, cEdit.from);
+        return '<li><label' + (other ? ' class="is-taken" title="Déjà rattachée à ' + esc(other) + ' : retirez-la d\'abord de ce client"' : '') + '>' +
+          '<input type="checkbox" data-org="' + esc(o.key) + '"' + (cEdit.checked[o.key] ? ' checked' : '') + (other ? ' disabled' : '') + '>' +
+          '<span>' + esc(o.name) + (other ? '<span class="org-other">déjà dans ' + esc(other) + '</span>' : '') + '</span>' +
+          '<span class="org-n">' + plural(o.n, 'ticket', 'tickets') + '</span></label></li>';
+      }).join('') : '<li class="help" style="padding:10px">Aucune organisation ne correspond.</li>') + '</ul>' +
+      '<div class="clients-actions">' +
+        (cEdit.from ? '<button type="button" class="btn danger" id="cDelete">Supprimer le client</button>' : '<span></span>') +
+        '<span class="row"><button type="button" class="btn" id="cCancel">Annuler</button><button type="button" class="btn primary" id="cSave">Enregistrer</button></span>' +
+      '</div>';
+  }
+  function openClients(){
+    clientsReturnFocus = document.activeElement;
+    cEdit = null;
+    $('clientsOverlay').hidden = false;
+    renderClientsModal();
+    $('clientsClose').focus();
+  }
+  function closeClients(){
+    $('clientsOverlay').hidden = true; cEdit = null;
+    if (clientsReturnFocus && document.body.contains(clientsReturnFocus)) clientsReturnFocus.focus();
+  }
+  $('clientsBtn').addEventListener('click', openClients);
+  $('clientsClose').addEventListener('click', function(){ leaveEdit(closeClients); });
+  $('clientsOverlay').addEventListener('mousedown', function(e){ if (e.target === this) leaveEdit(closeClients); });
+  $('clientsOverlay').addEventListener('keydown', function(e){
+    if (e.key === 'Escape' && $('modalOverlay').hidden){ e.preventDefault(); e.stopPropagation(); leaveEdit(closeClients); }
+  });
+  $('clientNew').addEventListener('click', function(){ leaveEdit(function(){ startEdit(null); }); });
+  $('clientsList').addEventListener('click', function(e){
+    var b = e.target.closest('[data-client]'); if (!b) return;
+    var name = b.dataset.client;
+    leaveEdit(function(){ startEdit(name); });
+  });
+  $('clientSuggest').addEventListener('click', function(e){
+    var b = e.target.closest('[data-sugg]'); if (!b) return;
+    var g = this._groups[b.dataset.sugg]; if (!g) return;
+    leaveEdit(function(){ startEdit(null, g.orgs, g.word, g.word.toUpperCase()); });
+  });
+  $('clientEdit').addEventListener('input', function(e){
+    if (!cEdit) return;
+    if (e.target.id === 'cName'){ cEdit.name = e.target.value; cEdit.saved = null; var m = this.querySelector('.client-saved'); if (m) m.remove(); }
+    if (e.target.id === 'cSearch'){
+      cEdit.q = e.target.value;
+      var pos = e.target.selectionStart;
+      renderClientsModal();
+      var inp = $('cSearch'); inp.focus(); inp.setSelectionRange(pos, pos);
+    }
+  });
+  $('clientEdit').addEventListener('change', function(e){
+    var k = e.target.dataset && e.target.dataset.org; if (!cEdit || !k) return;
+    if (e.target.checked) cEdit.checked[k] = knownOrgs()[k].name; else delete cEdit.checked[k];
+    var tools = this.querySelector('.org-tools span');
+    if (tools) tools.textContent = plural(Object.keys(cEdit.checked).length, 'organisation cochée', 'organisations cochées');
+  });
+  $('clientEdit').addEventListener('click', function(e){
+    if (!cEdit) return;
+    var id = e.target.id;
+    if (id === 'cCheckAll'){
+      var q = norm(cEdit.q), orgs = knownOrgs();
+      Object.keys(orgs).forEach(function(k){ if (norm(orgs[k].name).indexOf(q) >= 0 && !otherClient(k, cEdit.from)) cEdit.checked[k] = orgs[k].name; });
+      renderClientsModal();
+    }
+    else if (id === 'cCancel') leaveEdit(function(){ cEdit = null; renderClientsModal(); });
+    else if (id === 'cSave') saveClient();
+    else if (id === 'cDelete'){
+      var name = cEdit.from, n = Object.keys(state.clients).filter(function(k){ return state.clients[k].client === name; }).length;
+      askConfirm({
+        title: 'Supprimer le client ?',
+        html: modalItem(name, plural(n, 'organisation rattachée', 'organisations rattachées')) +
+          '<p class="modal-note">Les organisations ne sont pas supprimées : elles réapparaissent chacune sous leur propre nom dans les statistiques.</p>',
+        confirmLabel: 'Supprimer le client', tone: 'danger'
+      }).then(function(ok){
+        if (!ok) return;
+        Object.keys(state.clients).forEach(function(k){ if (state.clients[k].client === name) delete state.clients[k]; });
+        save(); audit('client_supprime', { client: name, organisations: n });
+        cEdit = null; renderClients(); renderClientsModal();
+      });
+    }
+  });
+  function saveClient(){
+    var name = cEdit.name.replace(/\s+/g, ' ').trim();
+    var keys = Object.keys(cEdit.checked).filter(function(k){ return !otherClient(k, cEdit.from); });
+    if (!name){ notice('Nom manquant', 'Donnez un nom au client.'); return; }
+    if (!keys.length){ notice('Aucune organisation', 'Cochez au moins une organisation pour ce client.'); return; }
+    if (db && !clientsAvailable){ notice('Table manquante', 'Exécutez d\'abord supabase/006_clients.sql dans Supabase.'); return; }
+    Object.keys(state.clients).forEach(function(k){ if (state.clients[k].client === cEdit.from && !cEdit.checked[k]) delete state.clients[k]; });
+    keys.forEach(function(k){ state.clients[k] = { org: cEdit.checked[k], client: name }; });
+    save(); audit('client_enregistre', { client: name, organisations: keys.length });
+    // Formulaire vidé, prêt pour un nouveau client ; confirmation au-dessus
+    cEdit = { from: null, name: '', checked: {}, q: '', saved: 'Client « ' + name + ' » enregistré (' + plural(keys.length, 'organisation', 'organisations') + ').' };
+    cEdit.initial = editSig();
+    renderClients(); renderClientsModal();
+    $('cName').focus();
+  }
+  // Menus déroulants : en vue Mois, les mois de la première donnée à aujourd'hui ; en vue Année, les années
+  function renderClientPickers(){
+    var first = null, today = new Date();
+    var see = function(d){ if (d && !isNaN(d) && (!first || d < first)) first = d; };
+    state.archive.forEach(function(t){ see(statDate(t)); });
+    state.taken.forEach(function(t){ see(t.takenOn ? parseDate(t.takenOn) : null); });
+    first = first || today;
+    var from = first.getFullYear() * 12 + first.getMonth();
+    var to = Math.max(today.getFullYear() * 12 + today.getMonth(), period.y * 12 + period.m);
+    from = Math.min(from, period.y * 12 + period.m);
+    var months = [];
+    for (var k = to; k >= from; k--) months.push(k);
+    $('clientMonth').innerHTML = months.map(function(k){
+      var y = Math.floor(k / 12), m = k % 12;
+      return '<option value="' + k + '">' + MONTHS[m].charAt(0).toUpperCase() + MONTHS[m].slice(1) + ' ' + y + '</option>';
+    }).join('');
+    $('clientMonth').value = String(period.y * 12 + period.m);
+    var years = [];
+    for (var y = Math.floor(to / 12); y >= Math.floor(from / 12); y--) years.push(y);
+    $('clientYear').innerHTML = years.map(function(y){ return '<option>' + y + '</option>'; }).join('');
+    $('clientYear').value = String(period.y);
+    $('clientMonth').hidden = clientView !== 'month';
+    $('clientYear').hidden = clientView !== 'year';
+  }
+  $('clientMonth').addEventListener('change', function(){ var k = +this.value; setPeriod(Math.floor(k / 12), k % 12); });
+  $('clientYear').addEventListener('change', function(){ setPeriod(+this.value, period.m); });
 
   /* ---------- Tickets pris par les consultants ---------- */
   // Liste importée à part : ces tickets n'entrent ni dans les sessions ni dans les archives,
@@ -2921,42 +3339,63 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       .filter(function(c){ return changes[c]; })
       .map(function(c){ return c + ' : ' + nf.format(changes[c]); }).join(', ');
   }
+  function colLetter(i){ var s = ''; i++; while (i > 0){ var m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; }
   function buildTaken(){
     var rows = parseTSV($('takenPaste').value);
     if (!rows.length){ tk = null; renderTaken(); return; }
-    // Sans ligne d'en-têtes (2e colonne déjà une date) : on applique l'ordre attendu
-    var hasHeader = !parseDate(rows[0][1]);
-    var header = (hasHeader ? rows[0] : rows[0].map(function(){ return ''; })).map(function(h, j){
-      return h.trim() || TAKEN_ORDER[j] || 'Colonne ' + (j + 1);
+    // Ligne d'en-têtes reconnue à ses noms de colonnes ; sans en-têtes, on applique l'ordre attendu
+    var idName = norm(state.columns[0] || '');
+    var hasHeader = rows[0].some(function(h){
+      var n = norm(h);
+      return n && (n === idName || /^id\b|ticket|numero|^n°|reference|^date|affect|assign|sujet|titre|^pole|categor|organisation|societe|client|demandeur|consultant|technicien/.test(n));
     });
+    // Les menus affichent les colonnes réellement collées : leur en-tête,
+    // ou, sans ligne d'en-têtes, sa première valeur pour la reconnaître
+    var width = rows.reduce(function(w, r){ return Math.max(w, r.length); }, 0);
+    var names = [], header = [];
+    for (var c = 0; c < width; c++){
+      var v = (rows[0][c] || '').trim();
+      names.push(hasHeader ? v : '');
+      header.push((hasHeader ? (v || '(sans titre)') : (v ? (v.length > 40 ? v.slice(0, 39) + '…' : v) : '(vide)')));
+    }
     var map = tk && tk.header.join('\t') === header.join('\t') ? tk.map : null;
     if (!map){
-      var used = [], idName = norm(state.columns[0] || '');
+      var used = [];
       map = { id: -1, person: -1, date: -1, label: -1, pole: -1, org: -1, requester: -1 };
-      for (var j = 0; j < header.length; j++) if (idName && norm(header[j]) === idName){ map.id = j; break; }
-      if (map.id < 0) map.id = guessCol(header, /ticket|numero|^n°|^no\b|^id\b|reference|incident/, used);
-      if (map.id < 0) map.id = 0;
-      used.push(map.id);
-      // La date d'abord : un en-tête comme « Date d'affectation » ne doit pas être pris pour le consultant
-      map.date = guessCol(header, /^date|affect|^cree|creat|ouvert|^pris|prise/, used); used.push(map.date);
-      map.person = guessCol(header, /assign|attribu|technicien|consultant|responsable|agent|intervenant|proprietaire|owner/, used); used.push(map.person);
-      map.label = guessCol(header, /sujet|titre|objet|resume|libelle|description/, used); used.push(map.label);
-      map.pole = guessCol(header, /^pole|categor/, used); used.push(map.pole);
-      map.org = guessCol(header, /organisation|societe|client|entreprise/, used); used.push(map.org);
-      map.requester = guessCol(header, /demandeur|requester|contact/, used); used.push(map.requester);
-      // Colonnes non reconnues : position de l'ordre attendu
-      Object.keys(TAKEN_POS).forEach(function(k){
-        if (map[k] < 0 && TAKEN_POS[k] < header.length && used.indexOf(TAKEN_POS[k]) < 0){ map[k] = TAKEN_POS[k]; used.push(map[k]); }
-      });
+      if (hasHeader){
+        for (var j = 0; j < names.length; j++) if (idName && norm(names[j]) === idName){ map.id = j; break; }
+        if (map.id < 0) map.id = guessCol(names, /ticket|numero|^n°|^no\b|^id\b|reference|incident/, used);
+        if (map.id < 0) map.id = 0;
+        used.push(map.id);
+        // La date d'abord : un en-tête comme « Date d'affectation » ne doit pas être pris pour le consultant
+        map.date = guessCol(names, /^date|affect|^cree|creat|ouvert|^pris|prise/, used); used.push(map.date);
+        map.person = guessCol(names, /assign|attribu|technicien|consultant|responsable|agent|intervenant|proprietaire|owner/, used); used.push(map.person);
+        map.label = guessCol(names, /sujet|titre|objet|resume|libelle|description/, used); used.push(map.label);
+        map.pole = guessCol(names, /^pole|categor/, used); used.push(map.pole);
+        map.org = guessCol(names, /organisation|societe|client|entreprise/, used); used.push(map.org);
+        map.requester = guessCol(names, /demandeur|requester|contact/, used); used.push(map.requester);
+      } else {
+        // Sans en-têtes : l'identifiant en 1re colonne, la date et le consultant reconnus à leur contenu ;
+        // les autres colonnes suivent l'ordre attendu seulement si le collage a exactement ce nombre de colonnes
+        map.id = 0; used.push(0);
+        var first = rows[0];
+        for (var d = 0; d < width; d++) if (used.indexOf(d) < 0 && parseDate(first[d])){ map.date = d; used.push(d); break; }
+        for (var q = 0; q < width; q++) if (used.indexOf(q) < 0 && matchPerson((first[q] || '').trim())){ map.person = q; used.push(q); break; }
+        if (width === TAKEN_ORDER.length) Object.keys(TAKEN_POS).forEach(function(k){
+          if (map[k] < 0 && used.indexOf(TAKEN_POS[k]) < 0){ map[k] = TAKEN_POS[k]; used.push(map[k]); }
+        });
+      }
     }
-    tk = { header: header, rows: hasHeader ? rows.slice(1) : rows, map: map };
+    // Titres de l'aperçu : l'en-tête collé, ou « Colonne B » sans ligne d'en-têtes (la 1re valeur est déjà dans la 1re ligne)
+    var cols = header.map(function(h, j){ return hasHeader ? h : 'Colonne ' + colLetter(j); });
+    tk = { header: header, cols: cols, rows: hasHeader ? rows.slice(1) : rows, map: map };
     renderTaken();
   }
   function analyzeTaken(){
     var m = tk.map, errors = [], warns = [], counts = { 'new': 0, upd: 0, skip: 0 }, seen = {}, unknown = {};
-    if (m.person < 0) errors.push('Choisissez la colonne du consultant.');
-    if (m.date < 0) errors.push('Choisissez la colonne de date de prise en charge.');
     var known = {}, team = {}, info = [], changes = {}, updated = 0;
+    if (m.person < 0 || m.date < 0) info.push('Sans colonne ' + (m.person < 0 && m.date < 0 ? 'consultant ni date' : m.person < 0 ? 'consultant' : 'date') +
+      ' : seuls les tickets déjà importés seront mis à jour, sur les colonnes choisies.');
     state.taken.forEach(function(t){ known[t.id] = t; });
     allTickets().forEach(function(t){ var k = (t.cells[0] || '').trim(); if (k && t.assignee) team[k] = t; });
     var rows = tk.rows.map(function(r){
@@ -2968,14 +3407,17 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       if (!id){ status = 'skip'; note = 'identifiant vide'; }
       else if (seen[id]){ status = 'skip'; note = 'en double dans le collage'; }
       else if (team[id]){ status = 'skip'; note = 'déjà affecté par l\'équipe (' + team[id].assignee + ')'; }
-      else if (!person){ status = 'skip'; note = raw ? 'consultant non reconnu' : 'consultant vide'; if (raw) unknown[raw] = true; }
-      else if (!d){ status = 'skip'; note = 'date illisible'; }
+      else if (raw && !person){ status = 'skip'; note = 'consultant non reconnu'; unknown[raw] = true; }
+      else if (m.date >= 0 && (r[m.date] || '').trim() && !d){ status = 'skip'; note = 'date illisible'; }
+      // Nouveau ticket : il faut le consultant et la date
+      else if (!known[id] && (!person || !d)){ status = 'skip'; note = 'nouveau ticket sans ' + (!person && !d ? 'consultant ni date' : !person ? 'consultant' : 'date'); }
       var row = { id: id, raw: raw, person: person, day: d ? isoDay(d) : '', label: label, pole: pick('pole'), org: pick('org'), requester: pick('requester'), changed: [], cells: r };
       if (status === 'new' && known[id]){
         // Colonnes réellement modifiées ; une cellule vide ne remplace pas la valeur déjà enregistrée
+        // Colonne ignorée ou cellule vide : la valeur enregistrée est gardée
         var ex = known[id];
-        if (row.person !== ex.person) row.changed.push('Consultant');
-        if (row.day !== ex.takenOn) row.changed.push('Date de prise en charge');
+        if (row.person && row.person !== ex.person) row.changed.push('Consultant');
+        if (row.day && row.day !== ex.takenOn) row.changed.push('Date de prise en charge');
         TAKEN_EXTRA.forEach(function(f){ if (row[f[0]] && row[f[0]] !== (ex[f[0]] || '')) row.changed.push(f[1]); });
         status = 'upd';
         note = row.changed.length ? 'mis à jour : ' + row.changed.join(', ') : 'déjà importé : identique';
@@ -3008,14 +3450,18 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     if (!tk){ box.hidden = true; return; }
     box.hidden = false;
     var a = analyzeTaken(), m = tk.map;
-    var fields = [['id', 'Identifiant', false], ['person', 'Consultant', false], ['date', 'Date de prise en charge', false], ['label', 'Sujet', true],
+    var fields = [['id', 'Identifiant', false], ['person', 'Consultant', false], ['date', 'Prise en charge', false], ['label', 'Sujet', true],
       ['pole', 'Pôle', true], ['org', 'Organisation', true], ['requester', 'Demandeur', true]];
-    $('takenMap').innerHTML = fields.map(function(f){
-      return '<label>' + f[1] + '<select data-field="' + f[0] + '">' +
-        (f[2] || f[0] !== 'id' ? '<option value="-1">' + (f[2] ? '— Aucune —' : '— Choisir —') + '</option>' : '') +
-        tk.header.map(function(h, j){ return '<option value="' + j + '"' + (m[f[0]] === j ? ' selected' : '') + '>' + esc(h) + '</option>'; }).join('') +
-        '</select></label>';
-    }).join('');
+    var nSet = fields.filter(function(f){ return m[f[0]] >= 0; }).length;
+    $('takenMap').innerHTML = '<p class="map-title">Colonnes à importer <span>' + nSet + ' sur ' + fields.length + ' · * obligatoire · « Ignorer » garde les valeurs déjà enregistrées</span></p>' +
+      '<div class="map-grid">' + fields.map(function(f){
+        var on = m[f[0]] >= 0;
+        return '<label class="map-field ' + (on ? 'is-set' : 'is-off') + '"><span class="map-name">' + f[1] + (f[0] === 'id' ? '<span class="req" title="Obligatoire">*</span>' : '') + '</span>' +
+          '<select data-field="' + f[0] + '">' +
+          (f[0] !== 'id' ? '<option value="-1">Ignorer</option>' : '') +
+          tk.header.map(function(h, j){ return '<option value="' + j + '"' + (m[f[0]] === j ? ' selected' : '') + '>' + esc(h) + '</option>'; }).join('') +
+          '</select></label>';
+      }).join('') + '</div>';
     $('takenIssues').innerHTML =
       a.errors.map(function(t){ return '<li class="issue err"><strong>À corriger :</strong> ' + t + '</li>'; }).join('') +
       a.warns.map(function(t){ return '<li class="issue warn">' + t + '</li>'; }).join('') +
@@ -3031,11 +3477,12 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
         case 'person': return '<td>' + (r.person ? '<strong>' + esc(r.person) + '</strong>' + (norm(r.raw) !== norm(r.person) ? ' <span class="muted-text">(' + esc(r.raw) + ')</span>' : '') : esc(r.raw)) + '</td>';
         case 'date': return '<td>' + (r.day ? fmtDay(r.day) : esc(v)) + '</td>';
         case 'label': return '<td class="c-long"><div class="clamp">' + esc(r.label) + '</div></td>';
+        case undefined: return '<td class="c-extra ignored">' + esc(v) + '</td>';
         default: return '<td class="c-extra" title="' + esc(v) + '">' + esc(v) + '</td>';
       }
     }
     $('takenTable').innerHTML = '<thead><tr><th>Statut</th>' +
-      tk.header.map(function(h){ return '<th>' + esc(h) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+      tk.cols.map(function(h, j){ return role[j] ? '<th>' + esc(h) + '</th>' : '<th class="ignored" title="Colonne ignorée">' + esc(h) + '<small>ignorée</small></th>'; }).join('') + '</tr></thead><tbody>' +
       a.rows.map(function(r){
         return '<tr' + (r.status === 'skip' ? ' class="r-skip"' : '') + '><td><span class="st ' + r.status + '">' + labels[r.status] + '</span>' +
           (r.note ? '<span class="st-note">' + esc(r.note) + '</span>' : '') + '</td>' +
@@ -3067,7 +3514,8 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       if (r.status === 'skip') return;
       var ex = state.taken.filter(function(t){ return t.id === r.id; })[0];
       if (ex){
-        ex.person = r.person; ex.takenOn = r.day;
+        if (r.person) ex.person = r.person;
+        if (r.day) ex.takenOn = r.day;
         TAKEN_EXTRA.forEach(function(f){ if (r[f[0]]) ex[f[0]] = r[f[0]]; });
       }
       else state.taken.push({ id: r.id, person: r.person, takenOn: r.day, label: r.label, pole: r.pole, org: r.org, requester: r.requester, importedAt: at });
@@ -3105,7 +3553,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
   }
 
   /* ---------- Onglets ---------- */
-  var tabs = [$('tab-tickets'), $('tab-archive'), $('tab-stats')];
+  var tabs = [$('tab-tickets'), $('tab-archive'), $('tab-stats'), $('tab-clients')];
   function selectTab(tab){
     tabs.forEach(function(t){
       var on = t === tab;
@@ -3114,6 +3562,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       $(t.getAttribute('aria-controls')).hidden = !on;
     });
     if (tab.id === 'tab-stats') animateBars($('panel-stats'));
+    if (tab.id === 'tab-clients') animateBars($('panel-clients'));
   }
   tabs.forEach(function(t, i){
     t.addEventListener('click', function(){ selectTab(t); });
@@ -3126,6 +3575,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
   });
   $('tab-archive').tabIndex = -1;
   $('tab-stats').tabIndex = -1;
+  $('tab-clients').tabIndex = -1;
 
   function renderAll(){ renderRole(); renderModel(); renderPeople(); renderTickets(); renderStats(); renderBanner(); renderArchive(); renderSessions(); renderUndo(); renderTaken(); }
 
@@ -3138,8 +3588,11 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
   /* ---------- Synchronisation avec Supabase ---------- */
   var db = null;
   // Dernier état connu de la base, ligne par ligne (JSON), pour n'envoyer que les différences
-  var synced = { settings: null, people: {}, sessions: {}, tickets: {}, taken: {} };
-  var COLLECTIONS = ['people', 'sessions', 'tickets', 'taken'];
+  var synced = { settings: null, people: {}, sessions: {}, tickets: {}, taken: {}, clients: {} };
+  var COLLECTIONS = ['people', 'sessions', 'tickets', 'taken', 'clients'];
+  var clientsAvailable = true; // false tant que la mise à jour 006 (clients) n'a pas été exécutée
+  // Organisation rattachée à un client : clé = nom normalisé de l'organisation
+  function clientRow(k){ var c = state.clients[k]; return { org_key: k, org: c.org, client: c.client }; }
   var hasSettingsRow = false;
   var peopleExtra = true; // false tant que la mise à jour 004 (pôles) n'a pas été exécutée
   function personRow(name){ return peopleExtra ? { name: name, poles: polesOf(name) } : { name: name }; }
@@ -3177,16 +3630,17 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     list.push(t);
   }
   function snapshot(){
-    var snap = { settings: state.columns.length || hasSettingsRow ? settingsRow() : null, people: {}, sessions: {}, tickets: {}, taken: {} };
+    var snap = { settings: state.columns.length || hasSettingsRow ? settingsRow() : null, people: {}, sessions: {}, tickets: {}, taken: {}, clients: {} };
     state.people.forEach(function(p){ snap.people[p] = personRow(p); });
     state.sessions.forEach(function(s){ snap.sessions[s.id] = sessionRow(s); });
     allTickets().forEach(function(t){ snap.tickets[t.id] = ticketRow(t); });
     state.taken.forEach(function(t){ snap.taken[t.id] = takenRow(t); });
+    Object.keys(state.clients).forEach(function(k){ snap.clients[k] = clientRow(k); });
     return snap;
   }
   function markSynced(){
     var snap = snapshot();
-    synced = { settings: snap.settings ? JSON.stringify(snap.settings) : null, people: {}, sessions: {}, tickets: {}, taken: {} };
+    synced = { settings: snap.settings ? JSON.stringify(snap.settings) : null, people: {}, sessions: {}, tickets: {}, taken: {}, clients: {} };
     COLLECTIONS.forEach(function(c){
       Object.keys(snap[c]).forEach(function(id){ synced[c][id] = JSON.stringify(snap[c][id]); });
     });
@@ -3196,8 +3650,8 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
   // et renvoie l'opération inverse (utilisée par « Annuler »).
   function commit(){
     var snap = snapshot();
-    var inv = { people: {}, sessions: {}, tickets: {}, taken: {} };
-    var up = { people: [], sessions: [], tickets: [], taken: [] }, del = { people: [], sessions: [], tickets: [], taken: [] };
+    var inv = { people: {}, sessions: {}, tickets: {}, taken: {}, clients: {} };
+    var up = { people: [], sessions: [], tickets: [], taken: [], clients: [] }, del = { people: [], sessions: [], tickets: [], taken: [], clients: [] };
     COLLECTIONS.forEach(function(c){
       var prev = synced[c], cur = snap[c];
       Object.keys(cur).forEach(function(id){
@@ -3238,6 +3692,10 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     if (takenAvailable){
       for (var c = chunks(up.taken, 500), x = 0; x < c.length; x++) check(await db.from('self_tickets').upsert(c[x]));
       for (var d = chunks(del.taken, 200), y = 0; y < d.length; y++) await remove('self_tickets', 'id', d[y]);
+    }
+    if (clientsAvailable){
+      if (up.clients.length) check(await db.from('client_orgs').upsert(up.clients, { onConflict: 'org_key' }));
+      for (var e = chunks(del.clients, 200), z = 0; z < e.length; z++) await remove('client_orgs', 'org_key', e[z]);
     }
   }
   // Une suppression refusée par les droits ne renvoie pas d'erreur : on vérifie qu'il ne reste rien
@@ -3293,6 +3751,12 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       takenExtra = !(await db.from('self_tickets').select('pole').limit(1)).error;
     }
     catch(err){ console.warn('Table self_tickets indisponible', err); takenAvailable = false; next.taken = []; }
+    // Clients : table ajoutée par la mise à jour 006, peut-être pas encore créée
+    try {
+      (await fetchAll('client_orgs', 'org_key')).forEach(function(r){ next.clients[r.org_key] = { org: r.org, client: r.client }; });
+      clientsAvailable = true;
+    }
+    catch(err){ console.warn('Table client_orgs indisponible', err); clientsAvailable = false; next.clients = {}; }
     state = normalize(next);
     markSynced();
   }
@@ -3354,6 +3818,18 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
         synced.settings = JSON.stringify(settingsRow());
         scheduleRender(true);
       });
+    if (clientsAvailable) ch.on('postgres_changes', { event: '*', schema: 'public', table: 'client_orgs' }, function(p){
+        if (p.eventType === 'DELETE'){
+          var k = p.old && p.old.org_key;
+          if (!k || !(k in synced.clients)) return;
+          delete state.clients[k]; delete synced.clients[k];
+        } else {
+          var n = p['new'];
+          state.clients[n.org_key] = { org: n.org, client: n.client };
+          synced.clients[n.org_key] = JSON.stringify(clientRow(n.org_key));
+        }
+        scheduleRender();
+      });
     if (takenAvailable) ch.on('postgres_changes', { event: '*', schema: 'public', table: 'self_tickets' }, function(p){
         if (p.eventType === 'DELETE'){
           var id = p.old && p.old.id;
@@ -3380,7 +3856,8 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     modele_modifie: 'Modèle de colonnes modifié', tickets_vides: 'Tickets vidés', sauvegarde_restauree: 'Sauvegarde restaurée',
     donnees_locales_envoyees: 'Données de l\'ancienne version envoyées', annulation: 'Annulation',
     ticket_supprime: 'Ticket supprimé', ticket_desarchive: 'Ticket remis en session', ticket_ajoute: 'Ticket ajouté',
-    personne_ajoutee: 'Personne ajoutée', personne_retiree: 'Personne retirée', poles_modifies: 'Pôle modifié'
+    personne_ajoutee: 'Personne ajoutée', personne_retiree: 'Personne retirée', poles_modifies: 'Pôle modifié',
+    client_enregistre: 'Client enregistré', client_supprime: 'Client supprimé'
   };
   function auditText(a, d){
     d = d || {};
@@ -3397,6 +3874,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       case 'annulation': return d.operation || '';
       case 'ticket_supprime': case 'ticket_desarchive': case 'ticket_ajoute': return d.ticket || '';
       case 'personne_ajoutee': case 'personne_retiree': return d.nom || '';
+      case 'client_enregistre': case 'client_supprime': return (d.client || '') + ' · ' + plural(d.organisations || 0, 'organisation', 'organisations');
       case 'poles_modifies': return (d.nom || '') + ((d.poles || []).length ? ' · ' + d.poles.join(', ') : ' · sans pôle');
       default: return '';
     }
