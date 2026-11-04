@@ -3668,6 +3668,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       t.tabIndex = on ? 0 : -1;
       $(t.getAttribute('aria-controls')).hidden = !on;
     });
+    window.scrollTo(0, 0);
     if (tab.id === 'tab-stats') animateBars($('panel-stats'));
     if (tab.id === 'tab-clients') animateBars($('panel-clients'));
   }
