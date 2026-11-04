@@ -449,15 +449,11 @@ td input[type=date]{padding:4px 8px}
 .order-list li::before{content:counter(col);display:inline-grid;place-items:center;width:18px;height:18px;margin-right:6px;border-radius:50%;background:var(--gold);color:#fff;font-size:11px;font-weight:600}
 .import-panel{margin-bottom:24px}
 .import-panel[hidden]{display:none}
-/* Panneau principal de l'import : plus large, bordure et fond bleutés ; modèle et personnes en retrait */
-.import-grid{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr) minmax(0,1fr);align-items:stretch}
-/* Personnes : même hauteur que les autres panneaux (elle ne compte pas dans la hauteur de la ligne), liste défilante */
-.people-card{display:flex;flex-direction:column;height:0;min-height:max(100%,260px)}
-.people-card > :not(.chips){flex:none}
-.people-card .chips{flex:1 1 auto;min-height:60px;overflow-y:auto;align-content:flex-start;padding-right:4px}
-@media (max-width:640px){.people-card{height:auto;min-height:0}.people-card .chips{max-height:240px}}
-@media (max-width:1000px){.import-grid{grid-template-columns:1fr 1fr}.import-grid .import-main{grid-column:1/-1}}
-@media (max-width:640px){.import-grid{grid-template-columns:1fr}}
+/* Panneau principal de l'import : plus large, bordure et fond bleutés ; modèle en retrait */
+.import-grid{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);align-items:stretch}
+/* Personnes : liste défilante au-delà de quelques lignes */
+.people-card .chips{max-height:280px;overflow-y:auto;align-content:flex-start;padding-right:4px}
+@media (max-width:760px){.import-grid{grid-template-columns:1fr}}
 .import-main{border:1px solid var(--accent);box-shadow:0 0 0 3px var(--accent-soft),var(--shadow);background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 6%,var(--surface)),var(--surface) 60%)}
 .import-main h3{color:var(--accent);font-size:16px;display:flex;align-items:center;gap:8px}
 .import-main h3::before{content:"";width:10px;height:10px;border-radius:3px;background:var(--accent)}
@@ -687,6 +683,15 @@ td input[type=date]{padding:4px 8px}
 #takenTable th{position:sticky;top:0;z-index:1;box-shadow:inset 0 -1px 0 var(--line);border-bottom:0}
 #takenTable tr.r-skip td:not(:first-child){opacity:.45}
 #takenTable tr.r-skip td{background:var(--danger-soft)}
+/* Colonne de contrôle des aperçus : fond propre, séparée des données et toujours visible au défilement horizontal */
+#pvTable .pv-status,#takenTable .pv-status{position:sticky;left:0;z-index:2;min-width:170px;max-width:240px;background:var(--surface-2);box-shadow:inset -2px 0 0 var(--muted);text-align:left;white-space:normal}
+#pvTable th.pv-status,#takenTable th.pv-status{top:0;z-index:3;text-transform:none;letter-spacing:0;font-size:12px;color:var(--text)}
+.pv-status small{display:block;font-size:10.5px;font-weight:400;color:var(--muted)}
+#pvTable tr.r-warn td.pv-status{background:var(--surface-2);box-shadow:inset 4px 0 0 var(--gold),inset -2px 0 0 var(--muted)}
+#pvTable tr.r-skip td.pv-status,#takenTable tr.r-skip td.pv-status{background:var(--surface-2);box-shadow:inset 4px 0 0 var(--danger),inset -2px 0 0 var(--muted)}
+.pv-status .st.upd,.pv-status .st.arch{background:var(--surface)}
+.pv-status .st-note{min-width:0}
+@media (max-width:640px){#pvTable .pv-status,#takenTable .pv-status{position:static;min-width:130px}}
 #takenPreview[hidden]{display:none}
 .muted-text{color:var(--muted)}
 .legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12px;color:var(--muted);margin:-6px 0 12px}
@@ -909,6 +914,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
         <h2>Session en cours <span class="tag" id="ticketCount">0</span></h2>
         <div class="row no-print" style="align-items:flex-end">
           <button class="btn" id="toggleImport" type="button" aria-expanded="false" aria-controls="importPanel">Importer depuis Excel</button>
+          <button class="btn" id="togglePeople" type="button" aria-expanded="false" aria-controls="peoplePanel">Personnes à affecter</button>
           <button class="btn danger admin-only" id="clearBtn" type="button">Vider les tickets</button>
           <span class="validate-stack">
             <span class="mail-row">
@@ -921,6 +927,24 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       </div>
       <p class="msg no-print" id="tableMsg" style="margin:-6px 0 0"></p>
       <p class="msg no-print" id="undoBar" style="margin:0 0 10px"></p>
+      <div class="import-panel no-print" id="peoplePanel" hidden>
+        <div class="card people-card">
+          <h3>Personnes pour l'affectation</h3>
+          <ul class="chips" id="peopleList"></ul>
+          <details class="archived-people" id="archivedPeople" hidden>
+            <summary>Consultants archivés (<span id="archivedPeopleCount">0</span>)</summary>
+            <p class="help" style="margin:6px 0 8px">Plus proposés à l'affectation ; leurs tickets restent dans les archives et les statistiques.</p>
+            <ul class="chips" id="archivedPeopleList"></ul>
+          </details>
+          <form class="row" id="personForm">
+            <input type="text" id="personInput" placeholder="Nom de la personne" style="flex:2 1 220px" autocomplete="off">
+            <select id="newPole" aria-label="Pôle de la nouvelle personne" style="flex:1 1 150px"></select>
+            <button class="btn" type="submit">Ajouter</button>
+          </form>
+          <p class="help">Cliquez sur un nom pour changer son pôle.</p>
+          <p class="msg err-text" id="polesMissing" hidden>Les pôles ne seront pas enregistrés tant que le script <strong>supabase/004_poles_consultants.sql</strong> n'a pas été exécuté dans Supabase (SQL Editor). Rechargez ensuite la page.</p>
+        </div>
+      </div>
       <div class="import-panel no-print" id="importPanel" hidden>
        <div class="grid import-grid">
         <div class="card import-main">
@@ -938,22 +962,6 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
           </form>
           <p class="help">Les tickets sont toujours rangés selon ce modèle, dans cet ordre. La 1<sup>re</sup> colonne sert d'identifiant : elle est obligatoire à l'import.</p>
           <p class="help user-only">Seul un administrateur peut modifier le modèle.</p>
-        </div>
-        <div class="card people-card">
-          <h3>Personnes pour l'affectation</h3>
-          <ul class="chips" id="peopleList"></ul>
-          <details class="archived-people" id="archivedPeople" hidden>
-            <summary>Consultants archivés (<span id="archivedPeopleCount">0</span>)</summary>
-            <p class="help" style="margin:6px 0 8px">Plus proposés à l'affectation ; leurs tickets restent dans les archives et les statistiques.</p>
-            <ul class="chips" id="archivedPeopleList"></ul>
-          </details>
-          <form class="row" id="personForm">
-            <input type="text" id="personInput" placeholder="Nom de la personne" style="flex:1 1 100%" autocomplete="off">
-            <select id="newPole" aria-label="Pôle de la nouvelle personne" style="flex:1 1 110px"></select>
-            <button class="btn" type="submit">Ajouter</button>
-          </form>
-          <p class="help">Cliquez sur un nom pour changer son pôle.</p>
-          <p class="msg err-text" id="polesMissing" hidden>Les pôles ne seront pas enregistrés tant que le script <strong>supabase/004_poles_consultants.sql</strong> n'a pas été exécuté dans Supabase (SQL Editor). Rechargez ensuite la page.</p>
         </div>
        </div>
         <div class="card preview-card" id="previewCard" hidden>
@@ -1359,9 +1367,9 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       return '<li class="model-item" data-i="' + i + '">' +
         '<span class="model-n">' + (i + 1) + '</span>' +
         '<input type="text" class="model-name" value="' + esc(c) + '"' + ro + ' aria-label="Nom de la colonne ' + (i + 1) + '">' +
-        (i === 0 ? '<span class="key-tag" title="Sert à reconnaître un ticket déjà importé">Identifiant</span>' : '<span></span>') +
-        (ro ? '' : '<span class="icon-btns">' +
-          '<button type="button" class="icon-btn" data-act="up" title="Monter"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
+        (i === 0 ? '<span class="key-tag" title="Sert à reconnaître un ticket déjà importé : cette colonne reste en première position">Identifiant</span>' : '<span></span>') +
+        (ro || i === 0 ? '' : '<span class="icon-btns">' +
+          '<button type="button" class="icon-btn" data-act="up" title="' + (i === 1 ? 'L\'identifiant reste en première position' : 'Monter') + '"' + (i === 1 ? ' disabled' : '') + '>↑</button>' +
           '<button type="button" class="icon-btn" data-act="down" title="Descendre"' + (i === n - 1 ? ' disabled' : '') + '>↓</button>' +
         '</span>') + '</li>';
     }).join('') : '<li class="empty" style="font-size:12.5px">Aucun modèle pour l\'instant : il sera créé à partir des colonnes du premier import, puis modifiable ici.</li>';
@@ -1378,6 +1386,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
   $('modelList').addEventListener('click', function(e){
     var b = e.target.closest('button[data-act]'); if (!b || !isAdmin()) return;
     var i = +b.closest('[data-i]').dataset.i, act = b.dataset.act;
+    if (i === 0 || (i === 1 && act === 'up')) return; // l'identifiant ne bouge pas
     if (act === 'up') swapCols(i, i - 1);
     else if (act === 'down') swapCols(i, i + 1);
     else return;
@@ -1529,8 +1538,8 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       a.warns.map(function(w){ return '<li class="issue ' + (w.ok ? 'ok' : 'warn') + '">' + w.text + '</li>'; }).join('') +
       (!a.errors.length && !a.warns.length ? '<li class="issue ok">Tout correspond au modèle.</li>' : '');
 
-    var head = '<thead><tr><th>Statut</th>' + pv.srcNames.map(function(n){ return '<th>' + esc(n) + '</th>'; }).join('') + '</tr>' +
-      '<tr><th>→ Modèle</th>' + pv.srcNames.map(function(_, j){
+    var head = '<thead><tr><th class="pv-status">Contrôle<small>non importé</small></th>' + pv.srcNames.map(function(n){ return '<th>' + esc(n) + '</th>'; }).join('') + '</tr>' +
+      '<tr><th class="pv-status">Colonne du modèle →</th>' + pv.srcNames.map(function(_, j){
         return '<th' + (a.badSrc[j] ? ' class="bad"' : '') + '><select data-j="' + j + '" aria-label="Correspondance de la colonne ' + (j + 1) + '">' + mapOptions(j) + '</select></th>';
       }).join('') + '</tr></thead>';
     var labels = { 'new': 'Nouveau', upd: 'Mise à jour', skip: 'Ignorée', arch: 'Déjà archivé' };
@@ -1540,7 +1549,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       for (var j = 0; j < pv.srcNames.length; j++){
         cells += '<td' + (pv.map[j] === IGNORE ? ' class="ignored"' : '') + '>' + esc(r.raw[j] || '') + '</td>';
       }
-      return '<tr' + (cls ? ' class="' + cls + '"' : '') + '><td><span class="st ' + r.status + '">' + labels[r.status] + '</span>' +
+      return '<tr' + (cls ? ' class="' + cls + '"' : '') + '><td class="pv-status"><span class="st ' + r.status + '">' + labels[r.status] + '</span>' +
         (r.issues.length ? '<span class="st-note">' + esc(r.issues.join(' · ')) + '</span>' : '') + '</td>' + cells + '</tr>';
     }).join('');
     $('pvTable').innerHTML = head + '<tbody>' + body + '</tbody>';
@@ -2333,6 +2342,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
 
   /* ---------- Import ---------- */
   function setImportOpen(open){
+    if (open) setPeopleOpen(false);
     $('importPanel').hidden = !open;
     $('toggleImport').setAttribute('aria-expanded', open ? 'true' : 'false');
     $('toggleImport').textContent = open ? 'Fermer l\'import' : 'Importer depuis Excel';
@@ -2340,6 +2350,14 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     $('pasteArea').focus();
   }
   $('toggleImport').addEventListener('click', function(){ setImportOpen($('importPanel').hidden); });
+  function setPeopleOpen(open){
+    if (open) setImportOpen(false); else closePolePop();
+    $('peoplePanel').hidden = !open;
+    $('togglePeople').setAttribute('aria-expanded', open ? 'true' : 'false');
+    $('togglePeople').textContent = open ? 'Fermer les personnes' : 'Personnes à affecter';
+    if (open) $('personInput').focus();
+  }
+  $('togglePeople').addEventListener('click', function(){ setPeopleOpen($('peoplePanel').hidden); });
 
   /* ---------- Ajout manuel d'un ticket (ligne de saisie en bas du tableau) ---------- */
   // Mêmes règles que l'import : colonnes obligatoires, pas de doublon en cours ni d'identifiant déjà archivé
@@ -3485,7 +3503,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       : plural(counts.upd, 'ticket déjà importé est identique', 'tickets déjà importés sont identiques') + ' : rien ne changera.');
     var unk = Object.keys(unknown);
     if (unk.length) warns.push('Consultants non reconnus : ' + unk.map(function(u){ return '« ' + esc(u) + ' »'; }).join(', ') +
-      '. Ajoutez-les dans « Personnes pour l\'affectation » (onglet Tickets, Importer depuis Excel), puis recollez.');
+      '. Ajoutez-les dans « Personnes pour l\'affectation » (onglet Tickets, bouton Personnes à affecter), puis recollez.');
     if (counts.skip) warns.push(plural(counts.skip, 'ligne ignorée', 'lignes ignorées') + ' (voir le statut de chaque ligne).');
     if (!rows.length) errors.push('Aucune ligne sous les en-têtes.');
     return { errors: errors, warns: warns, info: info, rows: rows, counts: counts, changes: changes, updated: updated };
@@ -3531,10 +3549,10 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
         default: return '<td class="c-extra" title="' + esc(v) + '">' + esc(v) + '</td>';
       }
     }
-    $('takenTable').innerHTML = '<thead><tr><th>Statut</th>' +
+    $('takenTable').innerHTML = '<thead><tr><th class="pv-status">Contrôle<small>non importé</small></th>' +
       tk.cols.map(function(h, j){ return role[j] ? '<th>' + esc(h) + '</th>' : '<th class="ignored" title="Colonne ignorée">' + esc(h) + '<small>ignorée</small></th>'; }).join('') + '</tr></thead><tbody>' +
       a.rows.map(function(r){
-        return '<tr' + (r.status === 'skip' ? ' class="r-skip"' : '') + '><td><span class="st ' + r.status + '">' + labels[r.status] + '</span>' +
+        return '<tr' + (r.status === 'skip' ? ' class="r-skip"' : '') + '><td class="pv-status"><span class="st ' + r.status + '">' + labels[r.status] + '</span>' +
           (r.note ? '<span class="st-note">' + esc(r.note) + '</span>' : '') + '</td>' +
           tk.header.map(function(h, j){ return cell(r, j); }).join('') + '</tr>';
       }).join('') + '</tbody>';
