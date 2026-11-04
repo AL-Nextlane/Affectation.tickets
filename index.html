@@ -620,24 +620,30 @@ td input[type=date]{padding:4px 8px}
 .client-grp{margin-left:6px;font-size:11px;font-weight:400;color:var(--muted)}
 /* Fenêtre « Clients » : liste des clients à gauche, édition à droite */
 .modal.clients-modal{width:min(980px,100%);height:calc(100vh - 32px);display:flex;flex-direction:column;overflow:hidden}
-.clients-body{flex:1;min-height:0;display:grid;grid-template-columns:260px 1fr;gap:18px}
-@media (max-width:720px){.clients-body{grid-template-columns:1fr;overflow-y:auto}}
-.clients-side{display:flex;flex-direction:column;gap:12px;min-height:0;overflow-y:auto}
-#clientsSearch{width:100%;margin-bottom:8px;font-size:13.5px}
-.clients-list{list-style:none;margin:0;padding:0;display:grid;gap:6px}
-.clients-list button{width:100%;text-align:left;display:grid;gap:1px;background:var(--surface-2);border:1px solid transparent;border-radius:10px;padding:8px 10px;cursor:pointer;color:var(--text);font:inherit}
-.clients-list button:hover{border-color:var(--line)}
+.clients-body{flex:1;min-height:0;display:grid;grid-template-columns:270px 1fr;gap:20px}
+.clients-side{display:flex;flex-direction:column;gap:14px;min-height:0}
+.clients-pick{flex:1;min-height:0;display:flex;flex-direction:column}
+.clients-pick .modal-kicker{margin-bottom:6px}
+#clientsSearch{width:100%;flex:none;margin-bottom:8px;font-size:13.5px}
+.clients-list{flex:1;min-height:0;overflow-y:auto;list-style:none;margin:0 -6px 0 0;padding:1px 6px 1px 1px;display:flex;flex-direction:column;gap:2px;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+.clients-list li{flex:none}
+.clients-list button{width:100%;text-align:left;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;background:transparent;border:1px solid transparent;border-radius:9px;padding:6px 10px;cursor:pointer;color:var(--text);font:inherit}
+.clients-list button:hover{background:var(--surface-2)}
 .clients-list button.on{border-color:var(--accent);background:var(--accent-soft)}
-.clients-list strong{font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.clients-list span{font-size:12px;color:var(--muted)}
+.clients-list strong{font-size:13.5px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.clients-list button.on strong{font-weight:600}
+.clients-list span{font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
 .client-sugg{display:flex;flex-wrap:wrap;gap:6px}
-.client-sugg button{border:1px dashed var(--line);background:transparent;color:var(--text);border-radius:999px;padding:3px 10px;font-size:12px;cursor:pointer}
+.client-sugg button{border:1px solid transparent;background:var(--surface-2);color:var(--text);border-radius:999px;padding:3px 10px;font-size:12px;cursor:pointer}
 .client-sugg button:hover{border-color:var(--accent);color:var(--accent)}
-.clients-edit{display:flex;flex-direction:column;gap:10px;min-height:0}
+.clients-edit{display:flex;flex-direction:column;gap:10px;min-height:0;min-width:0;padding-left:20px;border-left:1px solid var(--line)}
+.clients-empty{margin:auto;display:grid;gap:6px;text-align:center;font-size:13.5px;color:var(--muted)}
+.clients-empty strong{font-size:14.5px;font-weight:600;color:var(--text)}
 .clients-edit label{display:grid;gap:4px;font-size:12px;font-weight:500;color:var(--muted)}
 .clients-edit input[type=text],.clients-edit input[type=search]{font-size:13.5px}
 .org-tools{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:12.5px;color:var(--muted)}
-.org-list{flex:1;min-height:120px;overflow-y:auto;list-style:none;margin:0;padding:4px;border:1px solid var(--line);border-radius:12px}
+.org-list{flex:1;min-height:120px;overflow-y:auto;list-style:none;margin:0;padding:0 4px 4px;border:1px solid var(--line);border-radius:12px;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+.org-group{position:sticky;top:0;z-index:1;padding:8px 8px 5px;background:var(--surface);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
 .org-list label{display:grid;grid-template-columns:18px 1fr auto;align-items:center;gap:8px;padding:5px 8px;border-radius:8px;font-size:13px;font-weight:400;color:var(--text);cursor:pointer}
 .org-list label:hover{background:var(--surface-2)}
 .org-list .org-n{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
@@ -645,6 +651,11 @@ td input[type=date]{padding:4px 8px}
 .org-list label.is-taken{cursor:not-allowed;opacity:.6}
 .org-list label.is-taken:hover{background:transparent}
 .clients-actions{display:flex;justify-content:space-between;gap:8px}
+@media (max-width:720px){
+  .clients-body{grid-template-columns:1fr;overflow-y:auto}
+  .clients-list{max-height:220px}
+  .clients-edit{padding-left:0;border-left:0}
+}
 .client-saved{margin:0;padding:8px 12px;border-radius:10px;background:color-mix(in srgb,#1f9d55 12%,var(--surface));border:1px solid color-mix(in srgb,#1f9d55 40%,var(--line));color:var(--text);font-size:13px;font-weight:600}
 .client-legend{display:flex;gap:16px;font-size:11.5px;font-weight:500;text-transform:none;letter-spacing:0;color:var(--muted)}
 .client-legend span{display:inline-flex;align-items:center;gap:6px}
@@ -715,32 +726,10 @@ td input[type=date]{padding:4px 8px}
 .ar-switch .tab[aria-pressed="true"]::before{opacity:1;transform:scale(1.15);box-shadow:0 0 0 3px var(--c-soft)}
 #arCount{background:var(--accent-soft);color:var(--accent)}
 #arTakenCount{background:var(--gold-soft);color:var(--text)}
-.period .btn{padding:4px 12px}
-#clientNav select{font-size:13.5px;padding:5px 30px 5px 10px;min-width:0}
+.period select{padding-right:30px;min-width:0}
 #clientNav[hidden],#clientNav select[hidden],.client-head[hidden]{display:none}
 .period{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:14px;color:var(--muted)}
 /* Choix du mois (Statistiques) */
-.month-pick{position:relative;gap:6px}
-.month-pick .mp-label{min-width:150px;font-weight:600;color:var(--text);text-align:center}
-.month-pick .mp-label:hover,.month-pick .mp-label[aria-expanded="true"]{border-color:var(--accent);background:var(--surface)}
-.mp-pop{
-  position:absolute;top:calc(100% + 8px);right:0;z-index:20;width:264px;padding:12px;
-  background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 32px rgba(20,26,42,.16);
-  animation:fade .12s ease;
-}
-.mp-pop[hidden]{display:none}
-.mp-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;color:var(--text);font-size:15px}
-.mp-nav,.mp-month,.mp-today{border:0;background:transparent;cursor:pointer;font:inherit;color:var(--text);border-radius:8px}
-.mp-nav{width:30px;height:30px;font-size:16px;color:var(--muted)}
-.mp-nav:hover{background:var(--surface-2);color:var(--text)}
-.mp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
-.mp-month{padding:9px 0;font-size:13.5px;text-transform:capitalize}
-.mp-month:hover{background:var(--surface-2)}
-.mp-month.is-now{box-shadow:inset 0 0 0 1px var(--accent);color:var(--accent);font-weight:600}
-.mp-month.is-sel{background:var(--accent);color:#fff;font-weight:600;box-shadow:none}
-.mp-nav:focus-visible,.mp-month:focus-visible,.mp-today:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
-.mp-today{display:block;width:100%;margin-top:10px;padding:7px 0;font-size:13px;color:var(--accent);font-weight:500;border-top:1px solid var(--line);border-radius:0 0 8px 8px}
-.mp-today:hover{background:var(--accent-soft)}
 
 @media (prefers-reduced-motion:reduce){
   .fill{transition:none}
@@ -863,7 +852,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
 <div class="modal-overlay no-print" id="clientsOverlay" hidden>
   <div class="modal clients-modal" role="dialog" aria-modal="true" aria-labelledby="clientsTitle">
     <div class="audit-head">
-      <h2 id="clientsTitle">Clients</h2>
+      <h2 id="clientsTitle">Gérer les clients <span class="tag" id="clientsCount"></span></h2>
       <button class="link-btn" id="clientsClose" type="button">Fermer</button>
     </div>
     <p class="help" style="margin:0 0 12px">Un client regroupe plusieurs organisations : dans les statistiques, leurs tickets sont additionnés sur une seule ligne. Une organisation n'appartient qu'à un client.</p>
@@ -872,7 +861,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       <div class="clients-side">
         <button class="btn primary" type="button" id="clientNew">Nouveau client</button>
         <div id="clientSuggest"></div>
-        <div><p class="modal-kicker">Clients</p><input type="search" id="clientsSearch" placeholder="Client ou organisation…" aria-label="Rechercher un client ou une organisation" autocomplete="off"><ul class="clients-list" id="clientsList"></ul></div>
+        <div class="clients-pick"><p class="modal-kicker">Clients</p><input type="search" id="clientsSearch" placeholder="Client ou organisation…" aria-label="Rechercher un client ou une organisation" autocomplete="off"><ul class="clients-list" id="clientsList"></ul></div>
       </div>
       <div class="clients-edit" id="clientEdit"></div>
     </div>
@@ -1074,7 +1063,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       <div class="tabs" role="group" aria-label="Période des statistiques client">
         <button class="tab" type="button" data-cview="month" aria-pressed="true">Mois</button>
         <button class="tab" type="button" data-cview="year" aria-pressed="false">Année</button>
-        <button class="tab" type="button" data-cview="all" aria-pressed="false">Depuis le début <span class="tab-date">01/01/2026</span></button>
+        <button class="tab" type="button" data-cview="all" aria-pressed="false">Depuis le début <span class="tab-date">01/01/2025</span></button>
       </div>
       <span></span>
     </div>
@@ -1085,10 +1074,8 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
         <div class="row">
         <button class="btn" type="button" id="clientsBtn" style="white-space:nowrap" title="Regrouper plusieurs organisations sous un même client">Gérer les clients</button>
         <div class="period" id="clientNav">
-          <button class="btn" type="button" data-client-shift="-1" aria-label="Période précédente">‹</button>
-          <select id="clientMonth" aria-label="Mois"></select>
-          <select id="clientYear" aria-label="Année"></select>
-          <button class="btn" type="button" data-client-shift="1" aria-label="Période suivante">›</button>
+<select class="period-year" aria-label="Année"></select>
+          <select class="period-month" aria-label="Mois"></select>
         </div>
         </div>
       </div>
@@ -1120,19 +1107,9 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     <section id="statsMonth">
       <div class="section-head">
         <h2>Le mois <span class="tag" id="monthTag"></span></h2>
-        <div class="period month-pick">
-          <button class="btn" type="button" data-month-shift="-1" aria-label="Mois précédent">‹</button>
-          <button class="btn mp-label" type="button" id="monthBtn" aria-haspopup="dialog" aria-expanded="false" aria-controls="monthPop"></button>
-          <button class="btn" type="button" data-month-shift="1" aria-label="Mois suivant">›</button>
-          <div class="mp-pop" id="monthPop" role="dialog" aria-label="Choisir un mois" hidden>
-            <div class="mp-head">
-              <button type="button" class="mp-nav" data-pop-year="-1" aria-label="Année précédente">‹</button>
-              <strong id="monthPopYear"></strong>
-              <button type="button" class="mp-nav" data-pop-year="1" aria-label="Année suivante">›</button>
-            </div>
-            <div class="mp-grid" id="monthGrid"></div>
-            <button type="button" class="mp-today" id="monthToday">Ce mois-ci</button>
-          </div>
+        <div class="period">
+          <select class="period-year" aria-label="Année"></select>
+          <select class="period-month" aria-label="Mois"></select>
         </div>
       </div>
       <div class="pole-legend"></div>
@@ -1157,8 +1134,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       <div class="section-head">
         <h2>L'année <span class="tag" id="yearTag"></span></h2>
         <div class="period">
-          <button class="btn" type="button" data-year-shift="-1" aria-label="Année précédente">‹</button>
-          <button class="btn" type="button" data-year-shift="1" aria-label="Année suivante">›</button>
+          <select class="period-year" aria-label="Année"></select>
         </div>
       </div>
       <div class="pole-legend"></div>
@@ -1183,8 +1159,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       <div class="section-head">
         <h2>L'année en détail <span class="tag" id="detailTag"></span></h2>
         <div class="period">
-          <button class="btn" type="button" data-year-shift="-1" aria-label="Année précédente">‹</button>
-          <button class="btn" type="button" data-year-shift="1" aria-label="Année suivante">›</button>
+          <select class="period-year" aria-label="Année"></select>
         </div>
       </div>
       <div class="card">
@@ -1714,47 +1689,8 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
   function setPeriod(y, m){
     var d = new Date(y, m, 1);
     period.y = d.getFullYear(); period.m = d.getMonth();
-    renderMonthBtn(); renderStats(); renderBanner(); animateBars($('panel-stats'));
+    renderStats(); renderBanner(); animateBars($('panel-stats'));
   }
-  function shiftYear(delta){ setPeriod(period.y + delta, period.m); }
-  document.querySelectorAll('[data-month-shift]').forEach(function(b){
-    b.addEventListener('click', function(){ setPeriod(period.y, period.m + +b.dataset.monthShift); });
-  });
-
-  /* ---------- Choix du mois : grille des 12 mois ---------- */
-  var popYear = period.y;
-  function renderMonthBtn(){ $('monthBtn').textContent = MONTHS[period.m].charAt(0).toUpperCase() + MONTHS[period.m].slice(1) + ' ' + period.y; }
-  function renderMonthPop(){
-    var today = new Date();
-    $('monthPopYear').textContent = popYear;
-    $('monthGrid').innerHTML = MONTHS_SHORT.map(function(label, m){
-      var cls = (popYear === period.y && m === period.m ? ' is-sel' : '') + (popYear === today.getFullYear() && m === today.getMonth() ? ' is-now' : '');
-      return '<button type="button" class="mp-month' + cls + '" data-m="' + m + '" aria-label="' + MONTHS[m] + ' ' + popYear + '">' + label + '</button>';
-    }).join('');
-  }
-  function setMonthPopOpen(open){
-    $('monthPop').hidden = !open;
-    $('monthBtn').setAttribute('aria-expanded', open ? 'true' : 'false');
-    if (!open) return;
-    popYear = period.y; renderMonthPop();
-    var sel = $('monthGrid').querySelector('.is-sel'); if (sel) sel.focus();
-  }
-  $('monthBtn').addEventListener('click', function(e){ e.stopPropagation(); setMonthPopOpen($('monthPop').hidden); });
-  $('monthPop').addEventListener('click', function(e){
-    e.stopPropagation();
-    var y = e.target.closest('[data-pop-year]'), mb = e.target.closest('[data-m]');
-    if (y){ popYear += +y.dataset.popYear; renderMonthPop(); }
-    else if (mb){ setMonthPopOpen(false); setPeriod(popYear, +mb.dataset.m); $('monthBtn').focus(); }
-    else if (e.target.id === 'monthToday'){ var t = new Date(); setMonthPopOpen(false); setPeriod(t.getFullYear(), t.getMonth()); $('monthBtn').focus(); }
-  });
-  document.addEventListener('click', function(){ if (!$('monthPop').hidden) setMonthPopOpen(false); });
-  document.addEventListener('keydown', function(e){
-    if (e.key === 'Escape' && !$('monthPop').hidden){ setMonthPopOpen(false); $('monthBtn').focus(); }
-  });
-  renderMonthBtn();
-  document.querySelectorAll('[data-year-shift]').forEach(function(b){
-    b.addEventListener('click', function(){ shiftYear(+b.dataset.yearShift); });
-  });
 
   /* ---------- Mention « date de création » : seulement si la période affichée commence avant le 01/07/2026 ---------- */
   var CREATION_CUTOFF = new Date(2026, 6, 1);
@@ -3131,7 +3067,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     var col = orgColumn();
     $('panel-clients').querySelectorAll('[data-cview]').forEach(function(b){ b.setAttribute('aria-pressed', b.dataset.cview === clientView ? 'true' : 'false'); });
     $('clientNav').hidden = clientView === 'all';
-    renderClientPickers();
+    renderPeriodPickers();
     $('clientTag').textContent = clientView === 'month' ? MONTHS[period.m] + ' ' + period.y : clientView === 'year' ? String(period.y) : 'Tout';
     var inPeriod = function(d){
       return clientView === 'all' || (d && d.getFullYear() === period.y && (clientView === 'year' || d.getMonth() === period.m));
@@ -3194,12 +3130,6 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     try { localStorage.setItem('affectation-client-view', clientView); } catch(e){}
     renderClients();
   });
-  document.querySelectorAll('[data-client-shift]').forEach(function(b){
-    b.addEventListener('click', function(){
-      var d = +b.dataset.clientShift;
-      if (clientView === 'month') setPeriod(period.y, period.m + d); else setPeriod(period.y + d, period.m);
-    });
-  });
 
   /* ---------- Fenêtre « Clients » : regrouper des organisations sous un client ---------- */
   var cEdit = null, clientsReturnFocus = null; // cEdit : { from: nom d'origine ou null, name, checked: {clé: nom}, q }
@@ -3245,13 +3175,14 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
   }
   function renderClientsList(){
     var list = clientNames(), q = norm($('clientsSearch').value);
+    $('clientsCount').textContent = nf.format(list.length);
     var hits = list.filter(function(c){
       return !q || norm(c.name).indexOf(q) >= 0 || Object.keys(state.clients).some(function(k){
         return state.clients[k].client === c.name && norm(state.clients[k].org).indexOf(q) >= 0;
       });
     });
     $('clientsList').innerHTML = hits.length ? hits.map(function(c){
-      return '<li><button type="button" data-client="' + esc(c.name) + '"' + (cEdit && cEdit.from === c.name ? ' class="on"' : '') + '><strong>' + esc(c.name) + '</strong><span>' + plural(c.n, 'organisation', 'organisations') + '</span></button></li>';
+      return '<li><button type="button" data-client="' + esc(c.name) + '" title="' + esc(c.name) + ' · ' + plural(c.n, 'organisation', 'organisations') + '"' + (cEdit && cEdit.from === c.name ? ' class="on"' : '') + '><strong>' + esc(c.name) + '</strong><span>' + c.n + ' org.</span></button></li>';
     }).join('') : '<li class="help" style="margin:0">' + (list.length ? 'Aucun client ne correspond.' : 'Aucun client pour l\'instant.') + '</li>';
   }
   function renderClientsModal(){
@@ -3272,7 +3203,12 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     }).join('') + '</div>' : '';
     $('clientSuggest')._groups = words;
     var ed = $('clientEdit');
-    if (!cEdit){ ed.innerHTML = '<p class="help" style="margin:auto;text-align:center">Choisissez un client à gauche, ou créez-en un.</p>'; return; }
+    if (!cEdit){
+      var freeOrgs = Object.keys(orgs).filter(function(k){ return !state.clients[k]; }).length;
+      ed.innerHTML = '<div class="clients-empty"><strong>Choisissez un client à gauche, ou créez-en un.</strong>' +
+        (freeOrgs ? '<span>' + plural(freeOrgs, 'organisation n\'est rattachée', 'organisations ne sont rattachées') + ' à aucun client.</span>' : '') + '</div>';
+      return;
+    }
     var q = norm(cEdit.q);
     // Ordre : cochées, puis libres, puis déjà rattachées à un autre client
     var rank = function(o){ return cEdit.checked[o.key] ? 0 : state.clients[o.key] && state.clients[o.key].client !== cEdit.from ? 2 : 1; };
@@ -3287,9 +3223,10 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       '<label>Organisations <input type="search" id="cSearch" value="' + esc(cEdit.q) + '" placeholder="Rechercher une organisation…"></label>' +
       '<div class="org-tools"><span>' + plural(nChecked, 'organisation cochée', 'organisations cochées') + '</span>' +
         (q && free.length ? '<button type="button" class="link-btn" id="cCheckAll">Cocher les ' + free.length + ' résultats</button>' : '') + '</div>' +
-      '<ul class="org-list" id="cOrgs">' + (shown.length ? shown.map(function(o){
-        var other = otherClient(o.key, cEdit.from);
-        return '<li><label' + (other ? ' class="is-taken" title="Déjà rattachée à ' + esc(other) + ' : retirez-la d\'abord de ce client"' : '') + '>' +
+      '<ul class="org-list" id="cOrgs">' + (shown.length ? shown.map(function(o, i){
+        var other = otherClient(o.key, cEdit.from), group = rank(o);
+        var head = !i || rank(shown[i - 1]) !== group ? '<li class="org-group">' + ['Cochées', 'Disponibles', 'Dans un autre client'][group] + '</li>' : '';
+        return head + '<li><label' + (other ? ' class="is-taken" title="Déjà rattachée à ' + esc(other) + ' : retirez-la d\'abord de ce client"' : '') + '>' +
           '<input type="checkbox" data-org="' + esc(o.key) + '"' + (cEdit.checked[o.key] ? ' checked' : '') + (other ? ' disabled' : '') + '>' +
           '<span>' + esc(o.name) + (other ? '<span class="org-other">déjà dans ' + esc(other) + '</span>' : '') + '</span>' +
           '<span class="org-n">' + plural(o.n, 'ticket', 'tickets') + '</span></label></li>';
@@ -3305,7 +3242,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     cEdit = null;
     $('clientsOverlay').hidden = false;
     renderClientsModal();
-    $('clientsClose').focus();
+    $('clientsSearch').focus();
   }
   function closeClients(){
     $('clientsOverlay').hidden = true; cEdit = null;
@@ -3386,31 +3323,37 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     $('cName').focus();
   }
   // Menus déroulants : en vue Mois, les mois de la première donnée à aujourd'hui ; en vue Année, les années
-  function renderClientPickers(){
+  // Du premier ticket daté jusqu'au mois en cours ; les mois proposés sont ceux de l'année choisie
+  var periodRange = null;
+  function renderPeriodPickers(){
     var first = null, today = new Date();
     var see = function(d){ if (d && !isNaN(d) && (!first || d < first)) first = d; };
     state.archive.forEach(function(t){ see(statDate(t)); });
     state.taken.forEach(function(t){ see(t.takenOn ? parseDate(t.takenOn) : null); });
     first = first || today;
-    var from = first.getFullYear() * 12 + first.getMonth();
-    var to = Math.max(today.getFullYear() * 12 + today.getMonth(), period.y * 12 + period.m);
-    from = Math.min(from, period.y * 12 + period.m);
-    var months = [];
-    for (var k = to; k >= from; k--) months.push(k);
-    $('clientMonth').innerHTML = months.map(function(k){
-      var y = Math.floor(k / 12), m = k % 12;
-      return '<option value="' + k + '">' + MONTHS[m].charAt(0).toUpperCase() + MONTHS[m].slice(1) + ' ' + y + '</option>';
-    }).join('');
-    $('clientMonth').value = String(period.y * 12 + period.m);
-    var years = [];
+    var cur = period.y * 12 + period.m;
+    var from = Math.min(first.getFullYear() * 12 + first.getMonth(), cur);
+    var to = Math.max(today.getFullYear() * 12 + today.getMonth(), cur);
+    periodRange = { from: from, to: to };
+    var years = [], months = [];
     for (var y = Math.floor(to / 12); y >= Math.floor(from / 12); y--) years.push(y);
-    $('clientYear').innerHTML = years.map(function(y){ return '<option>' + y + '</option>'; }).join('');
-    $('clientYear').value = String(period.y);
-    $('clientMonth').hidden = clientView !== 'month';
-    $('clientYear').hidden = clientView !== 'year';
+    for (var m = 0; m < 12; m++) if (period.y * 12 + m >= from && period.y * 12 + m <= to) months.push(m);
+    var yearHTML = years.map(function(v){ return '<option>' + v + '</option>'; }).join('');
+    var monthHTML = months.map(function(v){ return '<option value="' + v + '">' + MONTHS[v].charAt(0).toUpperCase() + MONTHS[v].slice(1) + '</option>'; }).join('');
+    document.querySelectorAll('.period-year').forEach(function(sel){ sel.innerHTML = yearHTML; sel.value = String(period.y); });
+    document.querySelectorAll('.period-month').forEach(function(sel){ sel.innerHTML = monthHTML; sel.value = String(period.m); });
+    $('clientNav').querySelector('.period-month').hidden = clientView !== 'month';
   }
-  $('clientMonth').addEventListener('change', function(){ var k = +this.value; setPeriod(Math.floor(k / 12), k % 12); });
-  $('clientYear').addEventListener('change', function(){ setPeriod(+this.value, period.m); });
+  document.querySelectorAll('.period-year').forEach(function(sel){
+    // Un mois absent de la nouvelle année est ramené au mois disponible le plus proche
+    sel.addEventListener('change', function(){
+      var k = Math.max(periodRange.from, Math.min(periodRange.to, +this.value * 12 + period.m));
+      setPeriod(Math.floor(k / 12), k % 12);
+    });
+  });
+  document.querySelectorAll('.period-month').forEach(function(sel){
+    sel.addEventListener('change', function(){ setPeriod(period.y, +this.value); });
+  });
 
   /* ---------- Tickets pris par les consultants ---------- */
   // Liste importée à part : ces tickets n'entrent ni dans les sessions ni dans les archives,
