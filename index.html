@@ -623,6 +623,7 @@ td input[type=date]{padding:4px 8px}
 .clients-body{flex:1;min-height:0;display:grid;grid-template-columns:260px 1fr;gap:18px}
 @media (max-width:720px){.clients-body{grid-template-columns:1fr;overflow-y:auto}}
 .clients-side{display:flex;flex-direction:column;gap:12px;min-height:0;overflow-y:auto}
+#clientsSearch{width:100%;margin-bottom:8px;font-size:13.5px}
 .clients-list{list-style:none;margin:0;padding:0;display:grid;gap:6px}
 .clients-list button{width:100%;text-align:left;display:grid;gap:1px;background:var(--surface-2);border:1px solid transparent;border-radius:10px;padding:8px 10px;cursor:pointer;color:var(--text);font:inherit}
 .clients-list button:hover{border-color:var(--line)}
@@ -871,7 +872,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       <div class="clients-side">
         <button class="btn primary" type="button" id="clientNew">Nouveau client</button>
         <div id="clientSuggest"></div>
-        <div><p class="modal-kicker">Clients</p><ul class="clients-list" id="clientsList"></ul></div>
+        <div><p class="modal-kicker">Clients</p><input type="search" id="clientsSearch" placeholder="Client ou organisation…" aria-label="Rechercher un client ou une organisation" autocomplete="off"><ul class="clients-list" id="clientsList"></ul></div>
       </div>
       <div class="clients-edit" id="clientEdit"></div>
     </div>
@@ -3178,8 +3179,10 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
           (g.p ? '<span class="seg self" style="width:' + (100 - pa) + '%"></span>' : '') + '</span></span>' +
         '<span class="client-val">' + nf.format(g.n) + '</span><span class="client-pct">' + (noPct ? '' : pct + ' %') + '</span></li>';
     };
-    $('clientChart').innerHTML = total ? rows.map(function(g){ return row(g.name, g, '', g.name); }).join('') +
-      (none ? row('Sans organisation', none, ' other', 'Tickets sans organisation (non comptés dans les pourcentages)', true) : '')
+    var isAutres = function(g){ return /^autres?$/.test(norm(g.name)); };
+    $('clientChart').innerHTML = total ? rows.filter(function(g){ return !isAutres(g); }).map(function(g){ return row(g.name, g, '', g.name); }).join('') +
+      (none ? row('Sans organisation', none, ' other', 'Tickets sans organisation (non comptés dans les pourcentages)', true) : '') +
+      rows.filter(isAutres).map(function(g){ return row(g.name, g, ' other', g.name); }).join('')
       : '<li class="empty">Aucun ticket sur cette période.</li>';
     document.querySelector('.client-head').hidden = !total;
     renderDateNotes();
@@ -3240,12 +3243,21 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       confirmLabel: 'Abandonner', cancelLabel: 'Continuer la saisie', tone: 'danger'
     }).then(function(ok){ if (ok) then(); });
   }
-  function renderClientsModal(){
-    var orgs = knownOrgs(), list = clientNames();
-    $('clientsMissing').hidden = !(db && !clientsAvailable);
-    $('clientsList').innerHTML = list.length ? list.map(function(c){
+  function renderClientsList(){
+    var list = clientNames(), q = norm($('clientsSearch').value);
+    var hits = list.filter(function(c){
+      return !q || norm(c.name).indexOf(q) >= 0 || Object.keys(state.clients).some(function(k){
+        return state.clients[k].client === c.name && norm(state.clients[k].org).indexOf(q) >= 0;
+      });
+    });
+    $('clientsList').innerHTML = hits.length ? hits.map(function(c){
       return '<li><button type="button" data-client="' + esc(c.name) + '"' + (cEdit && cEdit.from === c.name ? ' class="on"' : '') + '><strong>' + esc(c.name) + '</strong><span>' + plural(c.n, 'organisation', 'organisations') + '</span></button></li>';
-    }).join('') : '<li class="help" style="margin:0">Aucun client pour l\'instant.</li>';
+    }).join('') : '<li class="help" style="margin:0">' + (list.length ? 'Aucun client ne correspond.' : 'Aucun client pour l\'instant.') + '</li>';
+  }
+  function renderClientsModal(){
+    var orgs = knownOrgs();
+    $('clientsMissing').hidden = !(db && !clientsAvailable);
+    renderClientsList();
     // Suggestions : organisations libres qui commencent par le même mot
     var words = {};
     Object.keys(orgs).forEach(function(k){
@@ -3288,6 +3300,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       '</div>';
   }
   function openClients(){
+    $('clientsSearch').value = '';
     clientsReturnFocus = document.activeElement;
     cEdit = null;
     $('clientsOverlay').hidden = false;
@@ -3299,6 +3312,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     if (clientsReturnFocus && document.body.contains(clientsReturnFocus)) clientsReturnFocus.focus();
   }
   $('clientsBtn').addEventListener('click', openClients);
+  $('clientsSearch').addEventListener('input', renderClientsList);
   $('clientsClose').addEventListener('click', function(){ leaveEdit(closeClients); });
   $('clientsOverlay').addEventListener('mousedown', function(e){ if (e.target === this) leaveEdit(closeClients); });
   $('clientsOverlay').addEventListener('keydown', function(e){
