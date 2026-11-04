@@ -683,6 +683,20 @@ td input[type=date]{padding:4px 8px}
 #takenTable th{position:sticky;top:0;z-index:1;box-shadow:inset 0 -1px 0 var(--line);border-bottom:0}
 #takenTable tr.r-skip td:not(:first-child){opacity:.45}
 #takenTable tr.r-skip td{background:var(--danger-soft)}
+/* Note libre : discrète au repos, champ visible au survol et à la saisie */
+.note-view,.note-read{display:block;width:22ch;max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:12.5px;line-height:1.4;text-align:left}
+.note-view{min-height:26px;padding:3px 7px;color:var(--text);background:transparent;border:1px solid transparent;border-radius:6px;cursor:text}
+.note-view:empty::before{content:attr(data-ph);color:transparent}
+#ticketTable tr:hover .note-view:not(:disabled){border-color:var(--line)}
+#ticketTable tr:hover .note-view:empty::before,.note-view:focus-visible:empty::before{color:var(--muted)}
+.note-view:disabled{cursor:not-allowed}
+#ticketTable td.c-note{padding-top:4px;padding-bottom:4px}
+#ticketTable.cols-fixed .note-view{width:100%}
+#ticketTable.col-measure .note-view{width:22ch!important}
+#ticketTable .note-input{position:fixed;z-index:60;width:320px;max-width:calc(100vw - 32px);min-height:0;resize:none;overflow:auto;padding:7px 9px;font:inherit;font-size:13px;line-height:1.4;white-space:pre-wrap;color:var(--text);background:var(--surface);border:1px solid var(--accent);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.28)}
+#ticketTable .note-input:focus{outline:2px solid var(--accent-soft)}
+.note-tip{position:fixed;z-index:70;max-width:340px;max-height:50vh;overflow:hidden;padding:8px 11px;font-size:13px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--text);background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.28);pointer-events:none}
+.note-tip[hidden]{display:none}
 /* Colonne de contrôle des aperçus : fond propre, séparée des données et toujours visible au défilement horizontal */
 #pvTable .pv-status,#takenTable .pv-status{position:sticky;left:0;z-index:2;min-width:170px;max-width:240px;background:var(--surface-2);box-shadow:inset -2px 0 0 var(--muted);text-align:left;white-space:normal}
 #pvTable th.pv-status,#takenTable th.pv-status{top:0;z-index:3;text-transform:none;letter-spacing:0;font-size:12px;color:var(--text)}
@@ -745,6 +759,7 @@ td input[type=date]{padding:4px 8px}
   [hidden]:not(.no-print){display:block!important}
   body{background:#fff}
   .card,.banner{break-inside:avoid;box-shadow:none}
+  .note-view,.note-read{width:auto;white-space:pre-wrap}
 }
 /* Listes déroulantes : même allure que les filtres de personnes */
 select:not([multiple]){
@@ -906,6 +921,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
   </div>
 
   <!-- Onglet Tickets -->
+  <div class="note-tip" id="noteTip" role="tooltip" hidden></div>
   <div class="pole-pop" id="polePop" role="dialog" hidden><p class="modal-kicker" id="polePopTitle"></p><div class="pole-pick" id="polePopList"></div><button type="button" class="pole-archive" id="polePopArchive"></button></div>
 
   <div id="panel-tickets" role="tabpanel" aria-labelledby="tab-tickets">
@@ -927,6 +943,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       </div>
       <p class="msg no-print" id="tableMsg" style="margin:-6px 0 0"></p>
       <p class="msg no-print" id="undoBar" style="margin:0 0 10px"></p>
+      <p class="msg err-text no-print" id="notesMissing" hidden>Les notes sont indisponibles : la base ne voit pas encore la colonne <strong>note</strong>. Rechargez la page. Si ce message reste affiché, vérifiez le script <strong>supabase/008_notes_tickets.sql</strong> dans Supabase.</p>
       <div class="import-panel no-print" id="peoplePanel" hidden>
         <div class="card people-card">
           <h3>Personnes pour l'affectation</h3>
@@ -1973,7 +1990,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     renderAddRow();
     var q = $('search').value.trim().toLowerCase();
     var rows = state.tickets.filter(function(t){
-      if (q && (t.cells.join(' ') + ' ' + t.assignee).toLowerCase().indexOf(q) < 0) return false;
+      if (q && (t.cells.join(' ') + ' ' + t.assignee + ' ' + (t.note || '')).toLowerCase().indexOf(q) < 0) return false;
       return true;
     });
     rows = applySort(rows, 'tickets');
@@ -1987,14 +2004,19 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     var kinds = columnKinds();
     var emptyText = state.tickets.length ? 'Aucun ticket ne correspond aux filtres.' : 'Aucun ticket dans la session en cours. Cliquez sur « Importer depuis Excel » pour en ajouter.';
     table.tHead.innerHTML = '<tr>' + state.columns.map(function(c, i){ return sortTh('tickets', i, c); }).join('') +
-      sortTh('tickets', 'assignee', 'Affectation') +
+      sortTh('tickets', 'assignee', 'Affectation') + sortTh('tickets', 'note', 'Note') +
       '<th class="no-print"><button class="fit-cols" type="button" title="Ajuster toutes les colonnes à leur contenu" aria-label="Ajuster toutes les colonnes à leur contenu">↔</button></th></tr>';
+    // Une note en cours de saisie survit au réaffichage (modification reçue d'un collègue, par exemple)
+    var a = document.activeElement, keep = null;
+    if (a && a.classList.contains('note-input')) keep = { id: a.closest('tr[data-id]').dataset.id, v: a.value, s: a.selectionStart, e: a.selectionEnd };
+    $('notesMissing').hidden = !db || ticketNote;
+    noteRendering = true;
     table.tBodies[0].innerHTML = rows.length ? rows.map(function(t){
       return '<tr data-id="' + t.id + '"' + (t.assignee ? '' : ' class="unassigned"') + '>' +
         t.cells.map(function(v, i){ return cellHTML(v, i, kinds[i]); }).join('') +
-        assignHTML(t.assignee) +
+        assignHTML(t.assignee) + noteHTML(t) +
         '<td class="no-print"><button class="del" type="button" title="Supprimer ce ticket" aria-label="Supprimer">×</button></td></tr>';
-    }).join('') : '<tr><td colspan="' + (state.columns.length + 2) + '" class="empty" style="padding:20px;white-space:normal">' + emptyText + '</td></tr>';
+    }).join('') : '<tr><td colspan="' + (state.columns.length + 3) + '" class="empty" style="padding:20px;white-space:normal">' + emptyText + '</td></tr>';
     // Comme dans Excel : une poignée au bord droit de chaque colonne (sauf la colonne de suppression), qui ne règle que cette colonne
     var ths = table.tHead.rows[0].cells;
     Array.prototype.forEach.call(ths, function(th, i){
@@ -2002,6 +2024,13 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       th.insertAdjacentHTML('beforeend', '<span class="col-grip" data-col="' + i + '" title="Glisser pour régler la largeur · double-clic : ajuster au contenu" aria-hidden="true"></span>');
     });
     applyColWidths();
+    noteRendering = false;
+    if (keep){
+      noteEditor = null;
+      var kept = table.querySelector('tr[data-id="' + keep.id + '"] .note-view');
+      if (kept){ openNote(kept); noteEditor.value = keep.v; noteEditor.setSelectionRange(keep.s, keep.e); }
+      else state.tickets.some(function(t){ if (t.id === keep.id){ setNote(t, keep.v); return true; } });
+    }
   }
 
   /* ---------- Largeur des colonnes du tableau des tickets (poignées) ---------- */
@@ -2116,6 +2145,76 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       }
     });
   });
+
+  /* ---------- Note libre d'un ticket ---------- */
+  // Au repos, une ligne tronquée de largeur fixe. La saisie se fait dans une zone flottante, qui n'élargit jamais la colonne.
+  var noteRendering = false, noteEditor = null;
+  function noteLabel(t, v){ return 'Note du ticket ' + (t.cells[0] || '') + (v ? ' : ' + v : ''); }
+  function noteHTML(t){
+    var v = t.note || '', off = db && !ticketNote;
+    return '<td class="c-note"><button type="button" class="note-view" data-ph="' + (off ? 'Note indisponible' : 'Ajouter une note…') + '" aria-label="' + esc(noteLabel(t, v)) + '"' +
+      (off ? ' disabled title="Exécutez le script supabase/008_notes_tickets.sql dans Supabase, puis rechargez la page."' : '') + '>' + esc(v) + '</button></td>';
+  }
+  function setNote(t, v){
+    v = v.trim();
+    if ((t.note || '') === v) return;
+    t.note = v; save();
+  }
+  function placeNote(){
+    if (!noteEditor) return;
+    var rc = noteEditor.parentNode.getBoundingClientRect(), w = noteEditor.offsetWidth, h = noteEditor.offsetHeight;
+    noteEditor.style.left = Math.max(8, Math.min(rc.left, innerWidth - w - 16)) + 'px';
+    noteEditor.style.top = Math.max(8, Math.min(rc.top, innerHeight - h - 8)) + 'px';
+  }
+  function openNote(view){
+    var f = findTicket(view); if (!f) return;
+    hideNoteTip();
+    var ta = document.createElement('textarea');
+    ta.className = 'note-input'; ta.rows = 4; ta.value = f.t.note || ''; ta.placeholder = 'Ajouter une note…';
+    ta.title = 'Entrée : enregistrer · Maj+Entrée : aller à la ligne · Échap : annuler';
+    ta.setAttribute('aria-label', noteLabel(f.t, ''));
+    view.parentNode.appendChild(ta);
+    noteEditor = ta; placeNote(); ta.focus();
+    ta.setSelectionRange(ta.value.length, ta.value.length);
+  }
+  function closeNote(ta){
+    if (noteEditor === ta) noteEditor = null;
+    var f = findTicket(ta), view = ta.parentNode.querySelector('.note-view');
+    if (f && !ta.dataset.cancel){
+      setNote(f.t, ta.value);
+      view.textContent = f.t.note || '';
+      view.setAttribute('aria-label', noteLabel(f.t, f.t.note));
+    }
+    ta.remove();
+  }
+  tbody.addEventListener('click', function(e){
+    var v = e.target.closest('.note-view'); if (v && !v.disabled) openNote(v);
+  });
+  // Enregistrée en quittant la zone. Pas de réaffichage ici : le clic qui a fait quitter la zone doit aboutir.
+  tbody.addEventListener('focusout', function(e){
+    if (!noteRendering && e.target.classList.contains('note-input')) closeNote(e.target);
+  });
+  tbody.addEventListener('keydown', function(e){
+    if (!e.target.classList.contains('note-input')) return;
+    if (e.key !== 'Escape' && (e.key !== 'Enter' || e.shiftKey)) return;
+    e.preventDefault();
+    var ta = e.target, view = ta.parentNode.querySelector('.note-view');
+    if (e.key === 'Escape') ta.dataset.cancel = '1';
+    ta.blur(); view.focus();
+  });
+  // Texte complet au survol, seulement quand il dépasse
+  function hideNoteTip(){ $('noteTip').hidden = true; }
+  document.addEventListener('mouseover', function(e){
+    var el = e.target.closest ? e.target.closest('.note-view,.note-read') : null, tip = $('noteTip');
+    if (!el || noteEditor || !el.textContent || (el.scrollWidth <= el.clientWidth && el.textContent.indexOf('\n') < 0)){ tip.hidden = true; return; }
+    tip.textContent = el.textContent; tip.hidden = false;
+    var rc = el.getBoundingClientRect(), top = rc.bottom + 6;
+    if (top + tip.offsetHeight > innerHeight - 8) top = Math.max(8, rc.top - tip.offsetHeight - 6);
+    tip.style.left = Math.max(8, Math.min(rc.left, innerWidth - tip.offsetWidth - 16)) + 'px';
+    tip.style.top = top + 'px';
+  });
+  window.addEventListener('scroll', function(){ hideNoteTip(); placeNote(); }, true);
+  window.addEventListener('resize', placeNote);
 
   /* ---------- Menu de choix d'une personne : affectation et filtres ---------- */
   // Recherche, initiales, nombre de tickets par personne, navigation au clavier.
@@ -2389,7 +2488,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
         (list ? ' list="addList' + i + '"' : '') + ' value="' + esc(prev.cells[i] || '') + '">' + list + '</td>';
     }).join('') +
       // L'affectation se fait ensuite depuis le tableau : sa cellule porte le bouton d'ajout
-      '<td><button class="btn primary add-ok" type="button" title="Ajouter ce ticket (Entrée)">Ajouter</button></td><td></td></tr>';
+      '<td><button class="btn primary add-ok" type="button" title="Ajouter ce ticket (Entrée)">Ajouter</button></td><td></td><td></td></tr>';
   }
   function addValues(){
     var foot = $('ticketTable').tFoot, cells = [];
@@ -2458,11 +2557,11 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
   /* ---------- Sauvegarde / export ---------- */
   function toTSV(items, withSession){
     var cell = function(v){ v = String(v == null ? '' : v); return /[\t\n"]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
-    var head = state.columns.concat(['Affectation', 'Date d\'affectation']);
+    var head = state.columns.concat(['Affectation', 'Date d\'affectation', 'Note']);
     if (withSession) head.push('Session');
     var lines = [head.map(cell).join('\t')];
     items.forEach(function(t){
-      var row = t.cells.concat([t.assignee, t.assignedAt]);
+      var row = t.cells.concat([t.assignee, t.assignedAt, t.note || '']);
       if (withSession) row.push(sessionLabel(t.sessionId));
       lines.push(row.map(cell).join('\t'));
     });
@@ -2627,13 +2726,15 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     });
     var td = 'border:1px solid #d0d5e0;padding:5px 9px;vertical-align:top;';
     var intro = esc(fillMailText(m.intro, id)).replace(/\n/g, '<br>');
-    var head = state.columns.concat(['Affectation']).map(function(c){
+    var withNote = tickets.some(function(t){ return t.note; });
+    var head = state.columns.concat(withNote ? ['Affectation', 'Note'] : ['Affectation']).map(function(c){
       return '<th style="' + td + 'background:#eef1f7;text-align:left;font-weight:600;">' + esc(c) + '</th>';
     }).join('');
     var body = tickets.map(function(t, k){
       return '<tr' + (k % 2 ? ' style="background:#f7f8fb;"' : '') + '>' + t.cells.map(function(v, i){
         return '<td style="' + td + (i === 0 ? 'font-weight:600;white-space:nowrap;' : '') + '">' + esc(cellText(v, i)) + '</td>';
-      }).join('') + '<td style="' + td + 'font-weight:600;white-space:nowrap;">' + esc(t.assignee) + '</td></tr>';
+      }).join('') + '<td style="' + td + 'font-weight:600;white-space:nowrap;">' + esc(t.assignee) + '</td>' +
+        (withNote ? '<td style="' + td + '">' + esc(t.note || '').replace(/\n/g, '<br>') + '</td>' : '') + '</tr>';
     }).join('');
     return '<div style="font-family:Calibri,\'Segoe UI\',Arial,sans-serif;font-size:11pt;color:#141a2a;">' +
       '<p>' + intro + '</p>' +
@@ -2771,7 +2872,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     return applySort(state.archive.filter(function(t){
       if (ses && t.sessionId !== ses) return false;
       if (who && t.assignee !== who) return false;
-      if (q && (t.cells.join(' ') + ' ' + t.assignee).toLowerCase().indexOf(q) < 0) return false;
+      if (q && (t.cells.join(' ') + ' ' + t.assignee + ' ' + (t.note || '')).toLowerCase().indexOf(q) < 0) return false;
       return true;
     }).map(function(t, i){ return [t, i]; })
       .sort(function(a, b){ return (order[b[0].sessionId] || 0) - (order[a[0].sessionId] || 0) || a[1] - b[1]; })
@@ -2782,6 +2883,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
   var sorts = { tickets: null, archive: null }; // { key, dir }
   function sortValue(t, key){
     if (key === 'assignee') return t.assignee || '';
+    if (key === 'note') return t.note || '';
     if (key === 'assignedAt') return t.assignedAt || '';
     if (key === 'session') return t.archivedAt || '';
     return t.cells[+key] || '';
@@ -2848,14 +2950,15 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     $('tab-archive').title = plural(state.archive.length, 'ticket affecté', 'tickets affectés') + ' · ' + state.taken.length + ' pris';
     if (!state.columns.length){ table.tHead.innerHTML = ''; table.tBodies[0].innerHTML = '<tr><td class="empty" style="padding:28px">Aucun ticket archivé.</td></tr>'; return; }
     table.tHead.innerHTML = '<tr>' + state.columns.map(function(c, i){ return sortTh('archive', i, c); }).join('') +
-      sortTh('archive', 'assignee', 'Affectation') + sortTh('archive', 'assignedAt', 'Date d\'affectation', 'Avant le 01/07/2026 : date de création du ticket') +
+      sortTh('archive', 'assignee', 'Affectation') + sortTh('archive', 'note', 'Note') + sortTh('archive', 'assignedAt', 'Date d\'affectation', 'Avant le 01/07/2026 : date de création du ticket') +
       sortTh('archive', 'session', 'Session') + '<th class="no-print"></th></tr>';
     table.tBodies[0].innerHTML = rows.length ? rows.map(function(t){
       return '<tr data-id="' + t.id + '">' + t.cells.map(function(v, i){ return cellHTML(v, i, kinds[i]); }).join('') +
         whoHTML(t.assignee, '') +
+        '<td class="c-note-read"><div class="note-read">' + esc(t.note || '') + '</div></td>' +
         '<td class="c-date">' + fmtDay(t.assignedAt) + '</td><td class="c-date">' + sessionLabel(t.sessionId) + '</td>' +
         '<td class="no-print"><button class="del restore" type="button" title="Remettre dans la session en cours" aria-label="Remettre dans la session en cours">↩</button></td></tr>';
-    }).join('') : '<tr><td colspan="' + (state.columns.length + 4) + '" class="empty" style="padding:20px;white-space:normal">' +
+    }).join('') : '<tr><td colspan="' + (state.columns.length + 5) + '" class="empty" style="padding:20px;white-space:normal">' +
       (state.archive.length ? 'Aucun ticket archivé ne correspond aux filtres.' : 'Aucun ticket archivé. Les tickets arrivent ici quand vous cliquez sur « Valider la session ».') + '</td></tr>';
   }
   /* ---------- Bascule Tickets affectés / Tickets pris ---------- */
@@ -3665,6 +3768,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
   var hasSettingsRow = false;
   var peopleExtra = true; // false tant que la mise à jour 004 (pôles) n'a pas été exécutée
   var peopleArchive = true; // false tant que la mise à jour 007 (archivage) n'a pas été exécutée
+  var ticketNote = true; // false tant que la mise à jour 008 (notes) n'a pas été exécutée
   function personRow(name){
     var row = peopleExtra ? { name: name, poles: polesOf(name) } : { name: name };
     if (peopleArchive) row.archived = isArchived(name);
@@ -3675,11 +3779,13 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
   function settingsRow(){ return { id: 1, columns: state.columns, required: state.required, date_col: state.dateCol }; }
   function sessionRow(s){ return { id: s.id, at: new Date(s.at).toISOString() }; }
   function ticketRow(t){
-    return { id: t.id, cells: t.cells, assignee: t.assignee || null, assigned_at: t.assignedAt || null,
+    var row = { id: t.id, cells: t.cells, assignee: t.assignee || null, assigned_at: t.assignedAt || null,
       session_id: t.sessionId || null, archived_at: t.sessionId && t.archivedAt ? new Date(t.archivedAt).toISOString() : null };
+    if (ticketNote) row.note = t.note || null;
+    return row;
   }
   function ticketFromRow(r){
-    var t = { id: r.id, cells: Array.isArray(r.cells) ? r.cells.slice() : [], assignee: r.assignee || '', assignedAt: r.assigned_at || '' };
+    var t = { id: r.id, cells: Array.isArray(r.cells) ? r.cells.slice() : [], assignee: r.assignee || '', assignedAt: r.assigned_at || '', note: r.note || '' };
     if (r.session_id){ t.sessionId = r.session_id; t.archivedAt = r.archived_at; }
     return t;
   }
@@ -3817,6 +3923,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     next.people = res[1].map(function(p){ return p.name; });
     peopleExtra = !(await db.from('people').select('poles').limit(1)).error;
     peopleArchive = !(await db.from('people').select('archived').limit(1)).error;
+    ticketNote = !(await db.from('tickets').select('note').limit(1)).error;
     res[1].forEach(function(p){ if (p.archived) next.archived[p.name] = true; });
     res[1].forEach(function(p){ var ps = cleanPoles(p.poles); if (ps.length) next.poles[p.name] = ps; });
     next.sessions = res[2].map(function(r){ return { id: r.id, at: r.at }; });
