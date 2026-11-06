@@ -1766,31 +1766,43 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
   }
 
   /* ---------- Rendu : bandeau ---------- */
+  // Tickets prioritaires (pris et affectés) sur les 7 et 30 derniers jours, aujourd'hui compris
+  function priorityCounts(){
+    var today = new Date(), dayShort = { day: 'numeric', month: 'short' };
+    var range = function(days){
+      var from = new Date(today.getFullYear(), today.getMonth(), today.getDate() - days + 1);
+      return { days: days, label: 'Tickets prioritaires sur ' + days + ' jours', from: from, total: 0, people: {},
+        sub: 'du ' + from.toLocaleDateString('fr-FR', dayShort) + ' au ' + today.toLocaleDateString('fr-FR', dayShort) };
+    };
+    var ranges = [range(7), range(30)];
+    var rangeEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+    var count = function(who, d){
+      if (!d) return;
+      ranges.forEach(function(r){
+        if (d >= r.from && d < rangeEnd){ r.people[who] = (r.people[who] || 0) + 1; r.total++; }
+      });
+    };
+    // Tickets affectés : comptés une fois la session validée, à leur date d'affectation
+    var team = {};
+    state.archive.forEach(function(t){
+      if (!t.assignee) return;
+      var key = (t.cells[0] || '').trim();
+      if (key) team[key] = true;
+      count(t.assignee, statDate(t));
+    });
+    // Tickets pris : à leur date de prise en charge, sans recompter un ticket déjà affecté par l'équipe
+    state.taken.forEach(function(t){ if (!team[t.id]) count(t.person, parseDate(t.takenOn)); });
+    return ranges;
+  }
   function renderBanner(){
     var total = state.tickets.length;
-    // Tickets pris, comptés sur la date de prise en charge : 7 et 30 derniers jours (aujourd'hui compris)
-    var today = new Date(), dayShort = { day: 'numeric', month: 'short' };
-    var weekFrom = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 6);
-    var monthFrom = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 29);
-    var rangeEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
-    var week = {}, month = {}, weekTotal = 0, monthTotal = 0;
-    state.taken.forEach(function(t){
-      var d = parseDate(t.takenOn);
-      if (!d) return;
-      if (d >= weekFrom && d < rangeEnd){ week[t.person] = (week[t.person] || 0) + 1; weekTotal++; }
-      if (d >= monthFrom && d < rangeEnd){ month[t.person] = (month[t.person] || 0) + 1; monthTotal++; }
-    });
-    var items = [
-      [weekTotal, 'Tickets pris sur 7 jours', 'du ' + weekFrom.toLocaleDateString('fr-FR', dayShort) + ' au ' + today.toLocaleDateString('fr-FR', dayShort), week],
-      [monthTotal, 'Tickets pris sur 30 jours', 'du ' + monthFrom.toLocaleDateString('fr-FR', dayShort) + ' au ' + today.toLocaleDateString('fr-FR', dayShort), month]
-    ];
-    $('banner').innerHTML = items.map(function(it){
-      var rows = sortCounts(it[3]);
+    $('banner').innerHTML = priorityCounts().map(function(it){
+      var rows = sortCounts(it.people);
       var pop = rows.length
         ? '<table>' + rows.map(function(r){ return '<tr><td>' + esc(r[0]) + '</td><td>' + nf.format(r[1]) + '</td></tr>'; }).join('') + '</table>'
-        : '<p>Aucun ticket pris sur la période.</p>';
-      return '<div class="banner-item" tabindex="0"><div class="banner-num">' + nf.format(it[0]) + '</div>' +
-        '<div class="banner-label">' + it[1] + '</div><div class="banner-sub">' + it[2] + '</div>' +
+        : '<p>Aucun ticket sur la période.</p>';
+      return '<div class="banner-item" tabindex="0"><div class="banner-num">' + nf.format(it.total) + '</div>' +
+        '<div class="banner-label">' + it.label + '</div><div class="banner-sub">' + it.sub + '</div>' +
         '<div class="banner-pop" role="tooltip"><p class="modal-kicker">Par consultant</p>' + pop + '</div></div>';
     }).join('');
     $('tabTicketsSub').textContent = plural(total, 'ligne', 'lignes');
@@ -2703,7 +2715,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
   }
   function addressList(v){ return String(v || '').split(/[;,]/).map(function(a){ return a.trim(); }).filter(Boolean); }
 
-  // Corps du mail en HTML : texte d'introduction, tableau des tickets
+  // Corps du mail en HTML : texte d'introduction, tableau des tickets, tickets prioritaires par consultant à la date du mail
   function mailHTML(id){
     // Regroupé par personne affectée (ordre alphabétique) ; l'ordre d'arrivée est gardé pour chaque personne
     var m = mailSettings(), tickets = sessionTickets(id).slice().sort(function(a, b){
@@ -2721,9 +2733,23 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       }).join('') + '<td style="' + td + 'font-weight:600;white-space:nowrap;">' + esc(t.assignee) + '</td>' +
         (withNote ? '<td style="' + td + '">' + esc(t.note || '').replace(/\n/g, '<br>') + '</td>' : '') + '</tr>';
     }).join('');
+    var th = 'background:#eef1f7;text-align:left;font-weight:600;', num = 'text-align:right;white-space:nowrap;';
+    var pc = priorityCounts(), week = pc[0], month = pc[1];
+    var countHead = '<th style="' + td + th + '">Consultant</th>' + pc.map(function(c){
+      return '<th style="' + td + th + 'text-align:right;white-space:nowrap;">' + esc(c.days) + ' jours<br><span style="font-weight:400;">' + esc(c.sub) + '</span></th>';
+    }).join('');
+    // Tout consultant sur 7 jours figure aussi sur 30 jours : la liste des 30 jours suffit
+    var countBody = sortCounts(month.people).map(function(e, k){
+      return '<tr' + (k % 2 ? ' style="background:#f7f8fb;"' : '') + '><td style="' + td + 'font-weight:600;white-space:nowrap;">' + esc(e[0]) + '</td>' +
+        '<td style="' + td + num + '">' + nf.format(week.people[e[0]] || 0) + '</td><td style="' + td + num + '">' + nf.format(e[1]) + '</td></tr>';
+    }).join('');
+    var countFoot = '<tr style="background:#eef1f7;font-weight:600;"><td style="' + td + '">Total</td>' +
+      '<td style="' + td + num + '">' + nf.format(week.total) + '</td><td style="' + td + num + '">' + nf.format(month.total) + '</td></tr>';
     return '<div style="font-family:Calibri,\'Segoe UI\',Arial,sans-serif;font-size:11pt;color:#141a2a;">' +
       '<p>' + intro + '</p>' +
       '<table style="border-collapse:collapse;font-size:10pt;">' + '<thead><tr>' + head + '</tr></thead><tbody>' + body + '</tbody></table>' +
+      '<p style="margin:18px 0 6px;"><strong>Tickets prioritaires par consultant</strong></p>' +
+      '<table style="border-collapse:collapse;font-size:10pt;"><thead><tr>' + countHead + '</tr></thead><tbody>' + countBody + countFoot + '</tbody></table>' +
       '</div>';
   }
 
