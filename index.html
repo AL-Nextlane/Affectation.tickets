@@ -1229,8 +1229,8 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
   /* ---------- Configuration Supabase ---------- */
   // URL du projet et clé publique « anon » : Supabase > Project Settings > API.
   // La clé « anon » est prévue pour être dans la page. Ne jamais y mettre la clé « service_role ».
-  var SUPABASE_URL = 'https://vxxansxmfkumaofobkue.supabase.co';
-  var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ4eGFuc3htZmt1bWFvZm9ia3VlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMxOTIxNzYsImV4cCI6MjEwODc2ODE3Nn0.KcsWgmcHdOgctVPmA_BS4_7mSPIRWKmYZCUdou64wpM';
+  var SUPABASE_URL = 'https://xuojhzkdvepjusgxdyky.supabase.co';
+  var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh1b2poemtkdmVwanVzZ3hkeWt5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQzMTU0NDAsImV4cCI6MjEwOTg5MTQ0MH0.ePfuW9voxvSwF3e5hCH5TXdKYpP_T3rnMY7a2m5iE_c';
 
   /* ---------- Données ---------- */
   var UNDO_KEY = 'affectation-undo-v2';
@@ -1999,7 +1999,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       return;
     }
     var kinds = columnKinds();
-    var emptyText = state.tickets.length ? 'Aucun ticket ne correspond aux filtres.' : 'Aucun ticket dans la session en cours. Cliquez sur « Importer depuis Excel » pour en ajouter.';
+    var emptyText = state.tickets.length ? 'Aucun ticket ne correspond aux filtres.' : 'Aucun ticket dans la session en cours. Cliquez sur « Importer depuis Excel » pour en ajouter.<br><br>Pensez à importer les tickets pris (onglet Archives, vue Tickets pris) avant de commencer la prochaine session.';
     table.tHead.innerHTML = '<tr>' + state.columns.map(function(c, i){ return sortTh('tickets', i, c); }).join('') +
       sortTh('tickets', 'assignee', 'Affectation') + sortTh('tickets', 'note', 'Note') +
       '<th class="no-print"><button class="fit-cols" type="button" title="Ajuster toutes les colonnes à leur contenu" aria-label="Ajuster toutes les colonnes à leur contenu">↔</button></th></tr>';

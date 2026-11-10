@@ -1,6 +1,7 @@
 -- =====================================================================
 -- Affectation des tickets : schéma Supabase
--- À exécuter une seule fois dans Supabase > SQL Editor > New query.
+-- À exécuter une seule fois dans Supabase > SQL Editor > New query, sur un projet vide.
+-- Contient déjà les mises à jour 002 à 008 : ne pas les exécuter ensuite sur un nouveau projet.
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
@@ -53,10 +54,13 @@ create table public.app_settings (
   updated_by uuid default auth.uid()
 );
 
--- Personnes proposées dans la liste d'affectation
+-- Personnes proposées dans la liste d'affectation (un pôle par personne ; archivée = retirée du menu d'affectation)
 create table public.people (
   name       text primary key,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  poles      text[] not null default '{}'
+             constraint people_poles_check check (poles <@ array['APV', 'Technique', 'VN/VO', 'Compta', 'Manager']::text[]),
+  archived   boolean not null default false
 );
 
 -- Sessions validées
@@ -82,6 +86,29 @@ create table public.tickets (
 );
 create index tickets_session_idx on public.tickets (session_id);
 create index tickets_seq_idx on public.tickets (seq);
+
+-- Tickets pris directement par les consultants (import de la vue perso)
+create table public.self_tickets (
+  id           text primary key,            -- identifiant du ticket (ex. n° de ticket)
+  person       text not null,               -- consultant qui a pris le ticket
+  taken_on     date not null,               -- date prise en compte dans les statistiques
+  label        text,                        -- sujet, pour mémoire
+  created_at   timestamptz not null default now(),
+  created_by   uuid default auth.uid(),
+  pole         text,                        -- pôle du ticket
+  organisation text,                        -- organisation du demandeur
+  requester    text                         -- demandeur
+);
+create index self_tickets_taken_on_idx on public.self_tickets (taken_on);
+
+-- Organisations regroupées par client (statistiques client)
+create table public.client_orgs (
+  org_key    text primary key,               -- nom de l'organisation normalisé (minuscules, sans accents)
+  org        text not null,                  -- nom de l'organisation tel qu'affiché
+  client     text not null,                  -- nom du client (ex. CHOPARD)
+  updated_at timestamptz not null default now(),
+  updated_by uuid default auth.uid()
+);
 
 -- Journal des actions : ajout seulement, jamais modifié ni supprimé
 create table public.audit_log (
@@ -162,6 +189,8 @@ alter table public.people       enable row level security;
 alter table public.sessions     enable row level security;
 alter table public.tickets      enable row level security;
 alter table public.audit_log    enable row level security;
+alter table public.self_tickets enable row level security;
+alter table public.client_orgs  enable row level security;
 
 -- Membres : chacun voit sa ligne, l'admin voit tout. Gestion depuis le tableau de bord Supabase.
 create policy members_select on public.members for select to authenticated
@@ -176,6 +205,8 @@ create policy settings_update on public.app_settings for update to authenticated
 -- Personnes
 create policy people_select on public.people for select to authenticated using (public.is_member());
 create policy people_insert on public.people for insert to authenticated with check (public.is_member());
+create policy people_update on public.people for update to authenticated
+  using (public.is_member()) with check (public.is_member());
 create policy people_delete on public.people for delete to authenticated using (public.is_member());
 
 -- Sessions : suppression par un admin, ou par son auteur dans les 24 h (pour « Annuler la validation »)
@@ -193,6 +224,20 @@ create policy tickets_update on public.tickets for update to authenticated
 create policy tickets_delete on public.tickets for delete to authenticated
   using (public.is_admin() or (public.is_member() and session_id is null));
 
+-- Tickets pris
+create policy self_tickets_select on public.self_tickets for select to authenticated using (public.is_member());
+create policy self_tickets_insert on public.self_tickets for insert to authenticated with check (public.is_member());
+create policy self_tickets_update on public.self_tickets for update to authenticated
+  using (public.is_member()) with check (public.is_member());
+create policy self_tickets_delete on public.self_tickets for delete to authenticated using (public.is_member());
+
+-- Clients
+create policy client_orgs_select on public.client_orgs for select to authenticated using (public.is_member());
+create policy client_orgs_insert on public.client_orgs for insert to authenticated with check (public.is_member());
+create policy client_orgs_update on public.client_orgs for update to authenticated
+  using (public.is_member()) with check (public.is_member());
+create policy client_orgs_delete on public.client_orgs for delete to authenticated using (public.is_member());
+
 -- Journal : lecture et ajout pour les membres ; aucune modification ni suppression possible
 create policy audit_select on public.audit_log for select to authenticated using (public.is_member());
 create policy audit_insert on public.audit_log for insert to authenticated with check (public.is_member());
@@ -200,4 +245,5 @@ create policy audit_insert on public.audit_log for insert to authenticated with 
 -- ---------------------------------------------------------------------
 -- Mise à jour en direct entre utilisateurs
 -- ---------------------------------------------------------------------
-alter publication supabase_realtime add table public.tickets, public.sessions, public.people, public.app_settings;
+alter publication supabase_realtime add table public.tickets, public.sessions, public.people, public.app_settings,
+  public.self_tickets, public.client_orgs;
