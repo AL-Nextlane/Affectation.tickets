@@ -344,9 +344,13 @@ td.c-long{white-space:normal}
 .clamp{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .c-tag.has-pole{background:color-mix(in srgb,var(--pc) 16%,var(--surface));color:color-mix(in srgb,var(--pc) 72%,var(--text))}
 .c-tag{display:inline-block;max-width:180px;overflow:hidden;text-overflow:ellipsis;vertical-align:middle;padding:1px 9px;border-radius:999px;background:var(--surface-2);color:var(--muted);font-size:11.5px;font-weight:500;white-space:nowrap}
-#ticketTable .del{opacity:0;transition:opacity .15s}
-#ticketTable tr:hover .del,#ticketTable .del:focus-visible{opacity:1}
-@media (hover:none){#ticketTable .del{opacity:1}}
+#ticketTable .del,#ticketTable .edit{opacity:0;transition:opacity .15s}
+#ticketTable tr:hover .del,#ticketTable .del:focus-visible,#ticketTable tr:hover .edit,#ticketTable .edit:focus-visible,#ticketTable tr.editing .edit{opacity:1}
+@media (hover:none){#ticketTable .del,#ticketTable .edit{opacity:1}}
+#ticketTable .row-acts{white-space:nowrap}
+.edit{border:0;background:transparent;color:var(--muted);cursor:pointer;border-radius:8px;padding:2px 6px;font-size:14px}
+.edit:hover{background:var(--surface-2);color:var(--accent)}
+#ticketTable tr.editing td{background-color:color-mix(in srgb,var(--accent) 10%,var(--surface))}
 #ticketTable{font-size:12.5px}
 
 #ticketTable th{font-size:11px;letter-spacing:.04em}
@@ -362,6 +366,7 @@ td.c-long{white-space:normal}
 /* Ligne d'ajout manuel : collée en bas du tableau pendant le défilement */
 #ticketTable tfoot td{position:sticky;bottom:0;z-index:1;padding:8px 6px;background:var(--accent-soft);background-color:color-mix(in srgb,var(--accent) 8%,var(--surface));border-top:2px solid var(--accent);border-bottom:0;vertical-align:middle}
 #ticketTable tfoot input,#ticketTable tfoot select{width:100%;min-width:90px;font-size:12.5px;padding:5px 8px;background-color:var(--surface)}
+#ticketTable tfoot input[data-date]{min-width:130px}
 #ticketTable tfoot .bad{border-color:var(--danger);outline:2px solid var(--danger-soft)}
 #ticketTable tfoot select{padding-right:26px;background-position:right 9px center}
 #ticketTable tfoot .btn{font-size:12.5px;padding:5px 12px;white-space:nowrap}
@@ -931,7 +936,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
 <div class="wrap">
   <header>
     <p class="eyebrow">Suivi des tickets</p>
-    <h1>Affectation des tickets <span class="version-tag" title="Version du site">v1.2</span></h1>
+    <h1>Affectation des tickets <span class="version-tag" title="Version du site">v1.3</span></h1>
     <hr class="header-rule">
   </header>
 
@@ -2078,10 +2083,12 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     $('notesMissing').hidden = !db || ticketNote;
     noteRendering = true;
     table.tBodies[0].innerHTML = rows.length ? rows.map(function(t){
-      return '<tr data-id="' + t.id + '"' + (t.assignee ? '' : ' class="unassigned"') + '>' +
+      var cls = (t.assignee ? '' : 'unassigned') + (addOpen && addEdit === t.id ? ' editing' : '');
+      return '<tr data-id="' + t.id + '"' + (cls.trim() ? ' class="' + cls.trim() + '"' : '') + '>' +
         t.cells.map(function(v, i){ return cellHTML(v, i, kinds[i]); }).join('') +
         assignHTML(t.assignee) + noteHTML(t) +
-        '<td class="no-print"><button class="del" type="button" title="Supprimer ce ticket" aria-label="Supprimer">×</button></td></tr>';
+        '<td class="no-print row-acts"><button class="edit" type="button" title="Modifier ce ticket" aria-label="Modifier">✎</button>' +
+        '<button class="del" type="button" title="Supprimer ce ticket" aria-label="Supprimer">×</button></td></tr>';
     }).join('') : '<tr><td colspan="' + (state.columns.length + 3) + '" class="empty" style="padding:20px;white-space:normal">' + emptyText + '</td></tr>';
     // Comme dans Excel : une poignée au bord droit de chaque colonne (sauf la colonne de suppression), qui ne règle que cette colonne
     var ths = table.tHead.rows[0].cells;
@@ -2489,6 +2496,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
   }, true);
 
   tbody.addEventListener('click', function(e){
+    if (e.target.classList.contains('edit')){ var fe = findTicket(e.target); if (fe) setAddOpen(true, fe.t); return; }
     if (!e.target.classList.contains('del')) return;
     var f = findTicket(e.target); if (!f) return;
     var t = f.t, subject = state.columns.map(function(c, i){ return /^sujet/.test(norm(c)) ? t.cells[i] : ''; }).filter(Boolean)[0];
@@ -2500,6 +2508,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     }).then(function(ok){
       if (!ok) return;
       var i = state.tickets.indexOf(t); if (i < 0) return;
+      if (addEdit === t.id) setAddOpen(false);
       state.tickets.splice(i, 1); save(); audit('ticket_supprime', { ticket: t.cells[0] }); renderTickets(); renderStats(); renderBanner();
     });
   });
@@ -2526,14 +2535,15 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
 
   /* ---------- Ajout manuel d'un ticket (ligne de saisie en bas du tableau) ---------- */
   // Mêmes règles que l'import : colonnes obligatoires, pas de doublon en cours ni d'identifiant déjà archivé
-  var addOpen = false, addSig = '';
+  // addEdit : identifiant du ticket en cours de modification (la même ligne sert alors à le modifier)
+  var addOpen = false, addSig = '', addEdit = null;
   var POLES = ['Atelier', 'Magasin', 'Comptabilité', 'Vente VN-VO', 'Divers'];
   function renderAddRow(){
     var table = $('ticketTable'), foot = table.tFoot || table.createTFoot();
     foot.classList.add('no-print');
     foot.hidden = !addOpen || !state.columns.length;
     // Reconstruite seulement si le modèle change, pour ne pas effacer la saisie en cours
-    var sig = JSON.stringify([state.columns, state.required]);
+    var sig = JSON.stringify([state.columns, state.required, addEdit]);
     if (sig === addSig && foot.rows.length) return;
     var prev = addValues();
     addSig = sig;
@@ -2545,7 +2555,10 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
         sample.forEach(function(t){ var x = (t.cells[i] || '').trim(); if (x) seen[x] = true; });
         list = '<datalist id="addList' + i + '">' + Object.keys(seen).sort().map(function(x){ return '<option value="' + esc(x) + '">'; }).join('') + '</datalist>';
       }
-      var ph = c + (state.required[i] ? ' *' : '') + (kinds[i] === 'date' ? ' (jj/mm/aaaa)' : '');
+      var ph = c + (state.required[i] ? ' *' : '');
+      if (isAddDateCol(c, kinds[i])){ // Date : masque jj/mm/aaaa, vérifiée à l'ajout
+        return '<td><input type="text" data-col="' + i + '" data-date="1" inputmode="numeric" maxlength="10" placeholder="' + esc(ph) + ' (jj/mm/aaaa)" aria-label="' + esc(ph) + '" autocomplete="off" value="' + esc(prev.cells[i] || '') + '"></td>';
+      }
       if (/^poles?$/.test(norm(c))){ // Pôle : liste fixe
         return '<td><select data-col="' + i + '" aria-label="' + esc(c) + '"><option value="">' + esc(ph) + '</option>' +
           POLES.map(function(p){ return '<option' + (p === prev.cells[i] ? ' selected' : '') + '>' + esc(p) + '</option>'; }).join('') + '</select></td>';
@@ -2554,40 +2567,91 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
         (list ? ' list="addList' + i + '"' : '') + ' value="' + esc(prev.cells[i] || '') + '">' + list + '</td>';
     }).join('') +
       // L'affectation se fait ensuite depuis le tableau : sa cellule porte le bouton d'ajout
-      '<td><button class="btn primary add-ok" type="button" title="Ajouter ce ticket (Entrée)">Ajouter</button></td><td></td><td></td></tr>';
+      '<td><button class="btn primary add-ok" type="button" title="' + (addEdit ? 'Enregistrer les modifications' : 'Ajouter ce ticket') + '">' + (addEdit ? 'Enregistrer' : 'Ajouter') + '</button></td><td></td><td></td></tr>';
+  }
+  // Colonne de date dans la ligne de saisie : détectée par son contenu ou par son nom (« Créé le », « Date… »)
+  function isAddDateCol(c, kind){ return kind === 'date' || /^(cree|date)/.test(norm(c)); }
+  // Masque de saisie : ne garde que les chiffres et place les « / » (2909 → 29/09)
+  function maskDay(v){
+    var d = String(v).replace(/\D/g, '').slice(0, 8);
+    return d.slice(0, 2) + (d.length > 2 ? '/' + d.slice(2, 4) : '') + (d.length > 4 ? '/' + d.slice(4) : '');
+  }
+  // Date jj/mm/aaaa réelle (pas de 31/02), entre 2000 et aujourd'hui
+  function validDay(v){
+    var m = String(v).match(/^(\d{2})\/(\d{2})\/(\d{4})$/); if (!m) return false;
+    var d = new Date(+m[3], +m[2] - 1, +m[1]);
+    if (d.getFullYear() !== +m[3] || d.getMonth() !== +m[2] - 1 || d.getDate() !== +m[1]) return false;
+    return +m[3] >= 2000 && d <= new Date();
   }
   function addValues(){
     var foot = $('ticketTable').tFoot, cells = [];
     if (foot) foot.querySelectorAll('[data-col]').forEach(function(el){ cells[+el.dataset.col] = el.value.trim(); });
     return { cells: cells };
   }
-  function setAddOpen(open){
+  // ticket : ouvre la ligne en modification, pré-remplie avec ce ticket
+  function setAddOpen(open, ticket){
     if (open && !state.columns.length){ notice('Aucun modèle de colonnes', 'Faites d\'abord un import depuis Excel : il crée le modèle de colonnes utilisé pour ajouter des tickets.'); return; }
-    addOpen = open;
-    $('addTicketBtn').textContent = open ? 'Fermer l\'ajout' : 'Saisir un ticket';
+    var editId = open && ticket ? ticket.id : null, modeChanged = editId !== addEdit;
+    addOpen = open; addEdit = editId;
+    $('addTicketBtn').textContent = open ? (editId ? 'Annuler la modification' : 'Fermer l\'ajout') : 'Saisir un ticket';
     $('addTicketBtn').classList.toggle('primary', !open);
     $('addTicketBtn').setAttribute('aria-expanded', open ? 'true' : 'false');
-    renderAddRow();
+    renderTickets(); // ligne de saisie + surlignage de la ligne modifiée
+    var foot = $('ticketTable').tFoot;
+    foot.querySelectorAll('.bad').forEach(function(el){ el.classList.remove('bad'); });
+    foot.querySelectorAll('[data-col]').forEach(function(el){
+      var v = ticket ? (ticket.cells[+el.dataset.col] || '') : modeChanged ? '' : el.value;
+      // Valeur hors liste (pôle importé tel quel) : ajoutée pour ne pas la perdre
+      if (el.tagName === 'SELECT' && v && !Array.prototype.some.call(el.options, function(o){ return o.value === v; })){
+        var o = document.createElement('option'); o.textContent = v; el.appendChild(o);
+      }
+      el.value = v;
+    });
     if (open){
-      var wrap = $('ticketTable').closest('.tickets-wrap'); wrap.scrollTop = wrap.scrollHeight;
-      $('ticketTable').tFoot.querySelector('[data-col]').focus();
+      if (!editId){ var wrap = $('ticketTable').closest('.tickets-wrap'); wrap.scrollTop = wrap.scrollHeight; }
+      foot.querySelector('[data-col]').focus({ preventScroll: !!editId });
     }
   }
   function submitAdd(){
     var foot = $('ticketTable').tFoot, v = addValues();
     var cells = state.columns.map(function(c, i){ return v.cells[i] || ''; }), key = cells[0];
     foot.querySelectorAll('.bad').forEach(function(el){ el.classList.remove('bad'); });
-    var missing = [];
-    state.columns.forEach(function(c, i){ if (state.required[i] && !cells[i]){ missing.push(c); foot.querySelector('[data-col="' + i + '"]').classList.add('bad'); } });
-    var err = missing.length ? 'À compléter : ' + missing.map(function(c){ return '« ' + esc(c) + ' »'; }).join(', ') + '.'
+    var missing = [], badDates = [];
+    var editing = null;
+    if (addEdit){
+      editing = state.tickets.filter(function(t){ return t.id === addEdit; })[0];
+      if (!editing){ $('tableMsg').innerHTML = '<span class="err-text">Ce ticket n\'est plus dans la session en cours.</span>'; setAddOpen(false); return; }
+    }
+    foot.querySelectorAll('[data-date]').forEach(function(el){
+      // Date incomplète, inexistante ou dans le futur (une date importée laissée telle quelle n'est pas contrôlée)
+      var dv = el.value.trim();
+      if (editing && dv === (editing.cells[+el.dataset.col] || '').trim()) return;
+      if (dv && !validDay(dv)){ badDates.push(state.columns[+el.dataset.col]); el.classList.add('bad'); }
+    });
+    state.columns.forEach(function(c, i){ if (state.required[i] && !cells[i] && badDates.indexOf(c) < 0){ missing.push(c); foot.querySelector('[data-col="' + i + '"]').classList.add('bad'); } });
+    var err = badDates.length ? 'Date invalide : ' + badDates.map(function(c){ return '« ' + esc(c) + ' »'; }).join(', ') + ' (date complète, au plus aujourd\'hui).'
+      : missing.length ? 'À compléter : ' + missing.map(function(c){ return '« ' + esc(c) + ' »'; }).join(', ') + '.'
+      : editing && key === editing.cells[0] ? '' // identifiant inchangé : pas de contrôle de doublon
       : ticketsByKey()[key] ? 'Le ticket « ' + esc(key) + ' » est déjà dans la session en cours.'
       : archivedByKey()[key] ? 'Le ticket « ' + esc(key) + ' » a déjà été archivé lors d\'une session précédente.'
       : '';
     var msg = $('tableMsg');
     if (err){
-      if (!missing.length) foot.querySelector('[data-col="0"]').classList.add('bad');
+      if (!missing.length && !badDates.length) foot.querySelector('[data-col="0"]').classList.add('bad');
       msg.innerHTML = '<span class="err-text">' + err + '</span>';
       (foot.querySelector('.bad') || foot.querySelector('[data-col]')).focus();
+      return;
+    }
+    if (editing){
+      var changed = state.columns.filter(function(c, i){ return (editing.cells[i] || '') !== cells[i]; });
+      if (!changed.length){ setAddOpen(false); msg.textContent = 'Aucune modification.'; return; }
+      var before = editing.cells[0];
+      editing.cells = cells;
+      save(); audit('ticket_modifie', { ticket: key, avant: before !== key ? before : undefined, colonnes: changed });
+      setAddOpen(false); renderAll();
+      msg.innerHTML = 'Ticket <strong>' + esc(key) + '</strong> modifié.';
+      var row = $('ticketTable').querySelector('tr[data-id="' + editing.id + '"] .edit');
+      if (row) row.focus();
       return;
     }
     state.tickets.push({ id: uid(), cells: cells, assignee: '', assignedAt: '' });
@@ -2603,11 +2667,14 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
   $('addTicketBtn').addEventListener('click', function(){ setAddOpen(!addOpen); });
   $('ticketTable').addEventListener('keydown', function(e){
     if (!e.target.closest('.add-row')) return;
-    if (e.key === 'Enter'){ e.preventDefault(); submitAdd(); }
+    // Entrée ne valide pas la ligne (trop précipité) : seul le bouton « Ajouter » ajoute le ticket
+    if (e.key === 'Enter' && !e.target.closest('.add-ok')) e.preventDefault();
     else if (e.key === 'Escape'){ e.preventDefault(); setAddOpen(false); $('addTicketBtn').focus(); }
   });
   $('ticketTable').addEventListener('click', function(e){ if (e.target.closest('.add-ok')) submitAdd(); });
-  $('ticketTable').addEventListener('input', function(e){ if (e.target.classList.contains('bad') && e.target.value.trim()) e.target.classList.remove('bad'); });
+  $('ticketTable').addEventListener('input', function(e){
+    if (e.target.dataset && e.target.dataset.date){ var mv = maskDay(e.target.value); if (mv !== e.target.value) e.target.value = mv; }
+    if (e.target.classList.contains('bad') && e.target.value.trim()) e.target.classList.remove('bad'); });
 
 
   var pasteTimer;
@@ -4116,7 +4183,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     'import': 'Import', tickets_pris_importes: 'Tickets pris importés', session_validee: 'Session validée', session_supprimee: 'Session supprimée', import_pris_supprime: 'Import de tickets pris supprimé',
     modele_modifie: 'Modèle de colonnes modifié', tickets_vides: 'Tickets vidés', sauvegarde_restauree: 'Sauvegarde restaurée',
     donnees_locales_envoyees: 'Données de l\'ancienne version envoyées', annulation: 'Annulation',
-    ticket_supprime: 'Ticket supprimé', ticket_desarchive: 'Ticket remis en session', ticket_ajoute: 'Ticket ajouté',
+    ticket_supprime: 'Ticket supprimé', ticket_desarchive: 'Ticket remis en session', ticket_ajoute: 'Ticket ajouté', ticket_modifie: 'Ticket modifié',
     personne_ajoutee: 'Personne ajoutée', personne_retiree: 'Personne retirée', personne_archivee: 'Consultant archivé', personne_restauree: 'Consultant restauré', poles_modifies: 'Pôle modifié',
     client_enregistre: 'Client enregistré', client_supprime: 'Client supprimé'
   };
@@ -4134,6 +4201,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
         return plural(d.tickets || 0, 'ticket en cours', 'tickets en cours') + ', ' + plural(d.archives || 0, 'archivé', 'archivés');
       case 'annulation': return d.operation || '';
       case 'ticket_supprime': case 'ticket_desarchive': case 'ticket_ajoute': return d.ticket || '';
+      case 'ticket_modifie': return (d.avant ? d.avant + ' → ' : '') + (d.ticket || '') + ((d.colonnes || []).length ? ' · ' + d.colonnes.join(', ') : '');
       case 'personne_ajoutee': case 'personne_retiree': case 'personne_archivee': case 'personne_restauree': return d.nom || '';
       case 'client_enregistre': case 'client_supprime': return (d.client || '') + ' · ' + plural(d.organisations || 0, 'organisation', 'organisations');
       case 'poles_modifies': return (d.nom || '') + ((d.poles || []).length ? ' · ' + d.poles.join(', ') : ' · sans pôle');
