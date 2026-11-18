@@ -984,7 +984,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
 <div class="wrap">
   <header>
     <p class="eyebrow">Suivi des tickets</p>
-    <h1>Affectation des tickets <span class="version-tag" title="Version du site">v1.3</span><span class="beta-badge" id="betaBadge" hidden title="Version de test ouverte depuis ce poste (localhost) : elle travaille sur la vraie base">BETA · version locale</span></h1>
+    <h1>Affectation des tickets <span class="version-tag" title="Version du site">v1.4</span><span class="beta-badge" id="betaBadge" hidden title="Version de test ouverte depuis ce poste (localhost) : elle travaille sur la vraie base">BETA · version locale</span></h1>
     <hr class="header-rule">
   </header>
 
@@ -1017,7 +1017,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
               <button class="menu-item" id="togglePeople" type="button" role="menuitem" aria-expanded="false" aria-controls="peoplePanel">Personnes à affecter</button>
             </div>
           </span>
-          <button class="btn admin-only" id="zendeskBtn" type="button" style="display:none" title="Tickets Zendesk tag ticket_challenge, sans agent, nouveaux ou ouverts, groupes N1 / N2 ICS et CE Customer Support">Récupérer depuis Zendesk <span class="tag">bêta</span></button>
+          <button class="btn admin-only" id="zendeskBtn" type="button" style="display:none" title="Tickets Zendesk tag ticket_challenge, sans agent, nouveaux ou ouverts, groupes N1 / N2 ICS et CE Customer Support">Récupérer depuis Zendesk</button>
           <button class="btn danger admin-only" id="clearBtn" type="button">Vider les tickets</button>
           <span class="validate-stack">
             <span class="mail-row">
@@ -1666,7 +1666,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
   /* ---------- Bêta : récupération des tickets challenge depuis Zendesk ---------- */
   // La fonction Supabase « zendesk-challenge » renvoie les tickets ; on les range dans l'ordre du modèle de colonnes
   // et on les ajoute directement à la session en cours.
-  var BETA = /[?&]beta=1\b/.test(location.search);
+  var ZENDESK = true; // v1.4 : fonctions Zendesk actives pour tous (le mode ?beta=1 n'existe plus)
   // Badge « BETA » : page ouverte depuis ce poste (serveur local ou fichier), jamais sur le site en ligne
   if (/^(localhost|127\.0\.0\.1|\[::1\]|)$/.test(location.hostname)){
     $('betaBadge').hidden = false;
@@ -3011,7 +3011,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       return;
     }
     var btn = this, plan = null;
-    if (BETA){ // bêta : vérification Zendesk avant d'afficher le récapitulatif
+    if (ZENDESK){ // vérification Zendesk avant d'afficher le récapitulatif
       var label = btn.textContent;
       btn.disabled = true; btn.textContent = 'Vérification Zendesk…';
       try { plan = await zendeskPlan(done); } finally { btn.disabled = false; btn.textContent = label; }
@@ -3599,7 +3599,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
   var grpSync = { busy: false, done: 0, todo: 0, error: '', last: '' };
   // all : revérifie aussi les organisations déjà connues (groupe ajouté ou changé dans Zendesk depuis)
   async function syncOrgGroups(all){
-    if (!BETA || !orgGroupsAvailable || grpSync.busy || !me) return;
+    if (!ZENDESK || !orgGroupsAvailable || grpSync.busy || !me) return;
     var orgs = knownOrgs(), todo = Object.keys(orgs).filter(function(k){ return all || !orgGroups[k]; });
     grpSync.error = '';
     if (!todo.length){ autoRangeGroups(); renderGroupSync(); return; }
@@ -3647,7 +3647,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
   }
   function renderGroupSync(){
     var el = $('groupSync'); if (!el) return;
-    if (!BETA){ el.hidden = true; return; }
+    if (!ZENDESK){ el.hidden = true; return; }
     el.hidden = false;
     if (!orgGroupsAvailable){
       el.innerHTML = '<span class="err-text">Groupes Zendesk indisponibles : exécutez <strong>supabase/010_groupes_zendesk.sql</strong> dans Supabase, puis rechargez la page.</span>';
@@ -4242,7 +4242,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
   }
   function renderSyncInfo(){
     var el = $('zendeskSync');
-    if (!BETA || !takenAvailable){ el.hidden = true; return; }
+    if (!ZENDESK || !takenAvailable){ el.hidden = true; return; }
     el.hidden = false;
     var state = zSync.busy ? 'busy' : zSync.error ? 'err' : zSync.at ? 'ok' : 'none';
     var text = { busy: 'synchronisation…', err: 'synchronisation impossible', ok: 'synchronisé ' + agoText(zSync.at), none: 'pas encore synchronisé' }[state];
@@ -4395,7 +4395,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
   /* ---------- Rôle de l'utilisateur ---------- */
   function renderRole(){
     document.body.classList.toggle('is-admin', isAdmin());
-    $('zendeskBtn').style.display = BETA ? '' : 'none'; // bêta : visible seulement avec ?beta=1 dans l'adresse (et pour les administrateurs)
+    $('zendeskBtn').style.display = ZENDESK ? '' : 'none'; // réservé aux administrateurs (classe admin-only)
     if (me){ $('meEmail').textContent = me.email; $('meEmail').title = me.email; $('meRole').textContent = isAdmin() ? 'Administrateur' : 'Utilisateur'; }
   }
 
@@ -4847,7 +4847,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       await loadAll();
       renderAll(); show('app');
       subscribe();
-      if (BETA){ // bêta : synchronisations Zendesk en arrière-plan, sans bloquer l'affichage
+      if (ZENDESK){ // synchronisations Zendesk en arrière-plan, sans bloquer l'affichage
         syncTakenFromZendesk().then(function(){ return syncOrgGroups(); });
       }
     } catch(err){
