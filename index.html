@@ -2971,7 +2971,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
   function zendeskNote(p, done){
     var day = new Date().toLocaleDateString('fr-FR');
     var list = done.map(function(t){ return (t.cells[0] || '').trim() + ' ➡️ ' + t.assignee; }).join('\n');
-    return 'Affecté à ' + p.agent + ' le ' + day + ', session validée par la supervision.\n\nTickets affectés pendant la session :\n' + list;
+    return 'Affecté à ' + p.agent + ' le ' + day + ', session validée par la Supervision ICS.\n\nTickets affectés pendant la session :\n' + list;
   }
   async function zendeskAssign(plan, done){
     var msg = $('tableMsg');
