@@ -1142,7 +1142,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       </div>
     </section>
     <div class="toolbar">
-      <input type="search" id="arSearch" placeholder="Rechercher…">
+      <input type="search" id="arSearch" placeholder="Rechercher (toutes les sessions)…">
       <div class="row">
         <span class="opt-box" id="arSessionBox">
           <select id="arSession" aria-label="Session" hidden></select>
@@ -3059,7 +3059,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
   var MAIL_KEY = 'affectation-mail-v2'; // v2 : nouveaux réglages par défaut (destinataire, objet)
   var MAIL_DEFAULTS = {
     to: 'assistance.icardms.grp@nextlane.com', cc: '',
-    subject: 'Affectation des tickets prioritaires - {date}',
+    subject: 'Affectation des tickets - {date}',
     intro: 'Bonjour,\n\nVoici la répartition des {nb} tickets de la session du {date} :'
   };
   function mailSettings(){
@@ -3087,7 +3087,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
   }
   function addressList(v){ return String(v || '').split(/[;,]/).map(function(a){ return a.trim(); }).filter(Boolean); }
 
-  // Corps du mail en HTML : texte d'introduction, tableau des tickets, tickets prioritaires par consultant à la date du mail
+  // Corps du mail en HTML : texte d'introduction, tableau des tickets, tickets pris ou affectés par consultant à la date du mail
   function mailHTML(id){
     // Regroupé par personne affectée (ordre alphabétique) ; l'ordre d'arrivée est gardé pour chaque personne
     var m = mailSettings(), tickets = sessionTickets(id).slice().sort(function(a, b){
@@ -3120,7 +3120,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     return '<div style="font-family:Calibri,\'Segoe UI\',Arial,sans-serif;font-size:11pt;color:#141a2a;">' +
       '<p>' + intro + '</p>' +
       '<table style="border-collapse:collapse;font-size:10pt;">' + '<thead><tr>' + head + '</tr></thead><tbody>' + body + '</tbody></table>' +
-      '<p style="margin:18px 0 6px;"><strong>Tickets prioritaires par consultant</strong></p>' +
+      '<p style="margin:18px 0 6px;"><strong>Tickets pris ou affectés par consultant</strong></p>' +
       '<table style="border-collapse:collapse;font-size:10pt;"><thead><tr>' + countHead + '</tr></thead><tbody>' + countBody + countFoot + '</tbody></table>' +
       '</div>';
   }
@@ -3253,7 +3253,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     var order = {};
     state.sessions.forEach(function(s, i){ order[s.id] = i; });
     return applySort(state.archive.filter(function(t){
-      if (ses && t.sessionId !== ses) return false;
+      if (ses && !q && t.sessionId !== ses) return false; // une recherche porte sur toutes les sessions
       if (who && t.assignee !== who) return false;
       if (q && (t.cells.join(' ') + ' ' + t.assignee + ' ' + (t.note || '')).toLowerCase().indexOf(q) < 0) return false;
       return true;
@@ -3380,7 +3380,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     syncOptButton('arTakenSession');
     var q = $('arSearch').value.trim().toLowerCase(), who = $('arPerson').value, ses = sel.value;
     var rows = state.taken.filter(function(t){
-      if (ses && takenSession(t) !== ses) return false;
+      if (ses && !q && takenSession(t) !== ses) return false; // une recherche porte sur toutes les sessions
       if (who && t.person !== who) return false;
       if (q && [t.id, t.person, t.label, t.pole, t.org, t.requester].join(' ').toLowerCase().indexOf(q) < 0) return false;
       return true;
@@ -3597,9 +3597,10 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
   // Recherche dans Zendesk du groupe des organisations encore inconnues (fonction zendesk-orgs, lecture seule).
   // Les réponses sont gardées dans org_groups : une organisation n'est recherchée qu'une fois (même introuvable).
   var grpSync = { busy: false, done: 0, todo: 0, error: '', last: '' };
-  async function syncOrgGroups(){
+  // all : revérifie aussi les organisations déjà connues (groupe ajouté ou changé dans Zendesk depuis)
+  async function syncOrgGroups(all){
     if (!BETA || !orgGroupsAvailable || grpSync.busy || !me) return;
-    var orgs = knownOrgs(), todo = Object.keys(orgs).filter(function(k){ return !orgGroups[k]; });
+    var orgs = knownOrgs(), todo = Object.keys(orgs).filter(function(k){ return all || !orgGroups[k]; });
     grpSync.error = '';
     if (!todo.length){ autoRangeGroups(); renderGroupSync(); return; }
     grpSync.busy = true; grpSync.done = 0; grpSync.todo = todo.length; renderGroupSync();
@@ -3660,11 +3661,15 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
         : 'Groupes Zendesk : ' + plural(withGrp, 'organisation rattachée', 'organisations rattachées') + ' à ' + plural(Object.keys(codes).length, 'groupe', 'groupes') +
           (keys.length - known.length ? ', ' + (keys.length - known.length) + ' à rechercher' : '') +
           (grpSync.error ? ' · <span class="err-text" title="' + esc(grpSync.error) + '">dernière recherche en erreur</span>' : '') +
-          ' · <button type="button" class="link-btn" id="groupSyncNow">Ranger depuis Zendesk</button>');
+          ' · <button type="button" class="link-btn" id="groupSyncNow">Ranger depuis Zendesk</button>' +
+          ' · <button type="button" class="link-btn" id="groupSyncAll" title="Recherche à nouveau toutes les organisations dans Zendesk (groupe ajouté ou changé depuis)">Tout revérifier</button>');
   }
-  document.addEventListener('click', function(e){ if (e.target.id === 'groupSyncNow') syncOrgGroups(); });
+  document.addEventListener('click', function(e){
+    if (e.target.id === 'groupSyncNow') syncOrgGroups();
+    if (e.target.id === 'groupSyncAll') syncOrgGroups(true);
+  });
 
-  /* ---------- Statistiques client : tickets prioritaires par organisation ---------- */
+  /* ---------- Statistiques client : tickets par organisation ---------- */
   // Même période que les statistiques consultant (mois / année), ou tout l'historique.
   var clientView = 'month';
   try { var cv = localStorage.getItem('affectation-client-view'); if (cv === 'year' || cv === 'all') clientView = cv; } catch(e){}
