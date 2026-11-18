@@ -3,19 +3,26 @@
 --   « Jeannine FLORE »       → « Jeannine Flore Signing M. »
 -- et ajoute « Nuno ALMEIDA CORREIA » (APV), archivé car il a quitté l'équipe.
 -- Renomme la personne (pôle et statut conservés), ses tickets (session en cours et archives) et ses tickets pris.
--- Tout ou rien : en cas d'erreur, rien n'est modifié.
+-- Sans table temporaire : le SQL Editor de Supabase peut exécuter chaque instruction sur une connexion différente.
+-- Le script peut être relancé sans risque (une deuxième exécution ne change plus rien).
 -- L'historique (audit_log) garde les anciens noms, comme trace de ce qui s'est passé.
 
 begin;
 
-create temporary table renommage (ancien text primary key, nouveau text not null) on commit drop;
-insert into renommage values
-  ('Maria Jose HERNANDEZ', 'Maria Jose HERNANDEZ FERNANDEZ'),
-  ('Jeannine FLORE',       'Jeannine Flore Signing M.');
+update public.people p set name = r.nouveau
+from (values ('Maria Jose HERNANDEZ', 'Maria Jose HERNANDEZ FERNANDEZ'),
+             ('Jeannine FLORE',       'Jeannine Flore Signing M.')) as r(ancien, nouveau)
+where p.name = r.ancien;
 
-update public.people       p set name     = r.nouveau from renommage r where p.name     = r.ancien;
-update public.tickets      t set assignee = r.nouveau from renommage r where t.assignee = r.ancien;
-update public.self_tickets s set person   = r.nouveau from renommage r where s.person   = r.ancien;
+update public.tickets t set assignee = r.nouveau
+from (values ('Maria Jose HERNANDEZ', 'Maria Jose HERNANDEZ FERNANDEZ'),
+             ('Jeannine FLORE',       'Jeannine Flore Signing M.')) as r(ancien, nouveau)
+where t.assignee = r.ancien;
+
+update public.self_tickets s set person = r.nouveau
+from (values ('Maria Jose HERNANDEZ', 'Maria Jose HERNANDEZ FERNANDEZ'),
+             ('Jeannine FLORE',       'Jeannine Flore Signing M.')) as r(ancien, nouveau)
+where s.person = r.ancien;
 
 -- Nuno ALMEIDA CORREIA : parti, ajouté directement en archivé (pôle APV) pour que ses tickets pris
 -- importés depuis Zendesk soient reconnus et comptés dans les statistiques
@@ -23,24 +30,13 @@ insert into public.people (name, poles, archived)
 values ('Nuno ALMEIDA CORREIA', array['APV'], true)
 on conflict (name) do update set poles = excluded.poles, archived = true;
 
--- Contrôle : plus aucune trace des anciens noms (nb = 0), et les compteurs des nouveaux noms
-select r.ancien || ' (ancien nom, doit être 0)' as controle,
-       (select count(*) from public.people where name = r.ancien) +
-       (select count(*) from public.tickets where assignee = r.ancien) +
-       (select count(*) from public.self_tickets where person = r.ancien) as nb
-from renommage r
-union all
-select r.nouveau || ' : liste / tickets / tickets pris',
-       null
-from renommage r
-union all
-select '   liste · ' || r.nouveau,        (select count(*) from public.people where name = r.nouveau) from renommage r
-union all
-select '   tickets · ' || r.nouveau,      (select count(*) from public.tickets where assignee = r.nouveau) from renommage r
-union all
-select '   tickets pris · ' || r.nouveau, (select count(*) from public.self_tickets where person = r.nouveau) from renommage r
-union all
-select 'Nuno ALMEIDA CORREIA archivé APV (doit être 1)',
-       (select count(*) from public.people where name = 'Nuno ALMEIDA CORREIA' and archived and poles = array['APV']);
-
 commit;
+
+-- Contrôle (attendu : anciens noms 0 ; Maria Jose 1 / 1 / 32 ; Jeannine 1 / 1 / 0 ; Nuno 1 / 0 / 0, archivé APV)
+select r.nom,
+       (select count(*) from public.people       where name     = r.nom) as liste,
+       (select count(*) from public.tickets      where assignee = r.nom) as tickets,
+       (select count(*) from public.self_tickets where person   = r.nom) as tickets_pris,
+       (select archived::text || ' · ' || array_to_string(poles, ',') from public.people where name = r.nom) as statut
+from (values ('Maria Jose HERNANDEZ'), ('Jeannine FLORE'),
+             ('Maria Jose HERNANDEZ FERNANDEZ'), ('Jeannine Flore Signing M.'), ('Nuno ALMEIDA CORREIA')) as r(nom);
