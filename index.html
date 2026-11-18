@@ -1638,20 +1638,35 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       var clean = function(v){ return String(v == null ? '' : v).replace(/\s+/g, ' ').trim(); };
       // Ajout direct (pas d'aperçu : données Zendesk fiables). Un ticket déjà en session est laissé tel quel
       // (les superviseurs ont pu le modifier), un ticket déjà archivé n'est pas réimporté.
-      var inSession = ticketsByKey(), archived = archivedByKey(), added = [], kept = 0, arch = 0;
+      var inSession = ticketsByKey(), archived = archivedByKey(), todo = [], seen = {}, kept = 0, arch = 0;
       list.forEach(function(t){
         var key = clean(t.id);
-        if (!key) return;
+        if (!key || seen[key]) return;
+        seen[key] = true;
         if (inSession[key]){ kept++; return; }
         if (archived[key]){ arch++; return; }
-        var cells = fields.map(function(f){
+        todo.push(fields.map(function(f){
           var v = clean(f ? t[f] : '');
           if (f === 'categorie' && /^vente/.test(norm(v))) v = 'Vente VN-VO'; // libellé des pôles du programme
           return v;
-        });
-        var nt = { id: uid(), cells: cells, assignee: '', assignedAt: '' };
-        state.tickets.push(nt); inSession[key] = nt; added.push(key);
+        }));
       });
+      var added = [];
+      if (todo.length){
+        var ok = await askConfirm({
+          title: 'Ajouter les tickets Zendesk ?',
+          html: '<div class="modal-stats"><div><span class="modal-num">' + todo.length + '</span><span>' + (todo.length > 1 ? 'tickets à ajouter' : 'ticket à ajouter') + '</span></div></div>' +
+            '<p class="modal-note">Tickets <strong>ticket_challenge</strong> sans agent, nouveaux ou ouverts (groupes N1 / N2 ICS), ajoutés à la session en cours sans affectation.' +
+            (kept ? ' ' + plural(kept, 'ticket déjà dans la session est laissé', 'tickets déjà dans la session sont laissés') + ' tel quel.' : '') +
+            (arch ? ' ' + plural(arch, 'ticket déjà archivé n\'est', 'tickets déjà archivés ne sont') + ' pas réimporté' + (arch > 1 ? 's' : '') + '.' : '') + '</p>',
+          confirmLabel: 'Ajouter ' + plural(todo.length, 'ticket', 'tickets'), tone: 'primary'
+        });
+        if (!ok){ msg.textContent = 'Récupération Zendesk annulée : aucun ticket ajouté.'; return; }
+        todo.forEach(function(cells){
+          if (ticketsByKey()[cells[0]]) return; // ajouté entre-temps (par un collègue)
+          state.tickets.push({ id: uid(), cells: cells, assignee: '', assignedAt: '' }); added.push(cells[0]);
+        });
+      }
       if (added.length){ save(); clearUndo(); audit('import', { ajoutes: added.length, mis_a_jour: 0, source: 'zendesk' }); renderAll(); }
       var unmapped = state.columns.filter(function(c, i){ return !fields[i]; });
       msg.innerHTML = '<strong>Zendesk : ' + (added.length ? plural(added.length, 'ticket ajouté', 'tickets ajoutés') : 'aucun nouveau ticket') + '.</strong>' +
