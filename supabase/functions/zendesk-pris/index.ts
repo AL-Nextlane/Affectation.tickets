@@ -125,23 +125,39 @@ Deno.serve(async (req) => {
     // 1. Champs personnalisés : Produit, Catégorie, Type d'assistance
     const fj = await zget(base, "/api/v2/ticket_fields.json?page[size]=100");
     const all: any[] = fj.ticket_fields || [];
-    const find = (titles: string[]) => all.find((f) => titles.includes(norm(f.title)) || titles.includes(norm(f.title_in_portal)));
-    const fProduit = find(FIELD_TITLES.produit), fCat = find(FIELD_TITLES.categorie), fAssist = find(FIELD_TITLES.assistance);
+    const active = all.filter((f) => f.active !== false);
+    const titled = (titles: string[]) => active.filter((f) => titles.includes(norm(f.title)) || titles.includes(norm(f.title_in_portal)));
+    const optNames = (f: any) => (f.custom_field_options || []).map((o: any) => norm(String(o.name).split("::").pop()!));
+    // Produit : par son titre
+    const fProduit = titled(FIELD_TITLES.produit)[0];
+    // Catégorie : plusieurs champs « Category » existent ; on garde celui des catégories françaises (Atelier, Magasin…)
+    const cats = titled(FIELD_TITLES.categorie);
+    const fCat = cats.find((f) => optNames(f).some((n: string) => ["atelier", "magasin", "comptabilite"].includes(n))) || cats[0];
+    // Type d'assistance : son titre varie selon la langue ; on le reconnaît à son option « Agent »
+    const withAgent = active.filter((f) => optNames(f).includes("agent"));
+    const fAssist = titled(FIELD_TITLES.assistance)[0] || (withAgent.length === 1 ? withAgent[0] : undefined);
     const missing = [!fProduit && "Produit", !fCat && "Catégorie", !fAssist && "Type d'assistance"].filter(Boolean);
     if (missing.length) {
       return reply({
-        erreur: "Champs Zendesk introuvables : " + missing.join(", ") + ". Voir « champs_disponibles » pour corriger leur nom dans la fonction.",
-        champs_disponibles: all.filter((f) => f.active !== false).map((f) => f.title).sort(),
+        erreur: "Champs Zendesk introuvables : " + missing.join(", ") + ".",
+        champs_avec_option_agent: withAgent.map((f) => ({ id: f.id, titre: f.title, options: (f.custom_field_options || []).map((o: any) => o.name) })),
+        champs_disponibles: active.map((f) => f.title).sort(),
       }, 500);
     }
     // Valeur « Agent » du type d'assistance (valeur technique de l'option)
-    const agentValues = (fAssist.custom_field_options || []).filter((o: any) => norm(o.name) === "agent").map((o: any) => o.value);
+    const agentValues = (fAssist.custom_field_options || [])
+      .filter((o: any) => norm(String(o.name).split("::").pop()!) === "agent").map((o: any) => o.value);
     if (!agentValues.length) {
       return reply({
         erreur: "Option « Agent » introuvable dans le champ « " + fAssist.title + " ».",
         options_disponibles: (fAssist.custom_field_options || []).map((o: any) => o.name),
       }, 500);
     }
+    const champsUtilises = {
+      produit: fProduit.title + " (" + fProduit.id + ")",
+      categorie: fCat.title + " (" + fCat.id + ")",
+      type_assistance: fAssist.title + " (" + fAssist.id + ")",
+    };
 
     // 2. Présélection par la recherche : tag + affecté + mis à jour depuis la date limite.
     //    (Une affectation met le ticket à jour : aucun ticket affecté dans la période n'est écarté.
@@ -201,6 +217,7 @@ Deno.serve(async (req) => {
         assigne: users[String(t.assignee_id)] || "",
       })),
       avertissements: warn.length ? warn : undefined,
+      champs_utilises: champsUtilises,
     });
   } catch (e) {
     return reply({ erreur: String((e as Error).message || e), avertissements: warn.length ? warn : undefined }, 502);
