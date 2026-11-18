@@ -1,7 +1,11 @@
 // Fonction Supabase « zendesk-orgs » : LECTURE SEULE, ne modifie rien dans Zendesk.
 // Liste les organisations Zendesk et leur code de groupe client, porté par un tag « grp_c… » (ex. grp_c100517).
 // Sert à rassembler automatiquement les organisations d'un même groupe dans l'onglet Statistiques client.
-// Corps : {} → { total, avec_groupe, sans_groupe, plusieurs_groupes, organisations: [{ nom, groupe }] }
+// Corps :
+//   {}                             → résumé (compteurs, plus gros groupes, exemples)
+//   { "groupe": "grp_c100517" }    → organisations de ce groupe
+//   { "recherche": "kroely" }      → organisations dont le nom contient ce texte (50 au plus)
+//   { "complet": true }            → toute la liste (volumineux)
 //
 // Mêmes secrets que les autres fonctions Zendesk. Test : en-tête « x-cle-admin » = clé secrète du projet.
 
@@ -78,6 +82,7 @@ Deno.serve(async (req) => {
     return reply({ erreur: "Secrets Zendesk manquants" }, 500);
   }
   const base = "https://" + sub.replace(/\.zendesk\.com.*$/i, "") + ".zendesk.com";
+  const body = await req.json().catch(() => ({}));
 
   try {
     // Toutes les organisations, par pages de 100 (pagination par curseur)
@@ -92,13 +97,34 @@ Deno.serve(async (req) => {
       const grps = (o.tags || []).filter((t: string) => GRP.test(t));
       return { nom: o.name, groupe: grps[0] || null, autres_groupes: grps.length > 1 ? grps.slice(1) : undefined };
     }).sort((a, b) => String(a.nom).localeCompare(String(b.nom), "fr"));
-    return reply({
+    const resume = {
       total: out.length,
       avec_groupe: out.filter((o) => o.groupe).length,
       sans_groupe: out.filter((o) => !o.groupe).length,
       plusieurs_groupes: out.filter((o) => o.autres_groupes).length,
       groupes_distincts: new Set(out.filter((o) => o.groupe).map((o) => o.groupe)).size,
-      organisations: out,
+    };
+    const norm = (s: string) => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+    // { "groupe": "grp_c100517" } → les organisations de ce groupe
+    if (body.groupe) {
+      const g = norm(body.groupe);
+      return reply({ ...resume, groupe: body.groupe, organisations: out.filter((o) => [o.groupe, ...(o.autres_groupes || [])].some((x) => norm(x) === g)) });
+    }
+    // { "recherche": "kroely" } → les organisations dont le nom contient ce texte (50 au plus)
+    if (body.recherche) {
+      const q = norm(body.recherche), hits = out.filter((o) => norm(o.nom).includes(q));
+      return reply({ ...resume, recherche: body.recherche, trouvees: hits.length, organisations: hits.slice(0, 50) });
+    }
+    // { "complet": true } → toute la liste (volumineux)
+    if (body.complet) return reply({ ...resume, organisations: out });
+    // Par défaut : le résumé, les 15 plus gros groupes, les organisations à plusieurs groupes et un échantillon sans groupe
+    const sizes: Record<string, number> = {};
+    for (const o of out) if (o.groupe) sizes[o.groupe] = (sizes[o.groupe] || 0) + 1;
+    return reply({
+      ...resume,
+      plus_gros_groupes: Object.entries(sizes).sort((a, b) => b[1] - a[1]).slice(0, 15).map(([groupe, n]) => ({ groupe, organisations: n })),
+      exemples_plusieurs_groupes: out.filter((o) => o.autres_groupes).slice(0, 10),
+      exemples_sans_groupe: out.filter((o) => !o.groupe).slice(0, 10).map((o) => o.nom),
     });
   } catch (e) {
     return reply({ erreur: String((e as Error).message || e) }, 502);
