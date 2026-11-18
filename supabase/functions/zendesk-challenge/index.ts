@@ -150,7 +150,10 @@ Deno.serve(async (req) => {
     let catField: any = null;
     try {
       const j = await zget(base, "/api/v2/ticket_fields.json?page[size]=100");
-      catField = (j.ticket_fields || []).find((f: any) => ["categorie", "category"].includes(norm(f.title)));
+      // Plusieurs champs « Category » existent : on garde celui des catégories françaises (Atelier, Magasin…)
+      const cats = (j.ticket_fields || []).filter((f: any) => f.active !== false && ["categorie", "category"].includes(norm(f.title)));
+      catField = cats.find((f: any) => (f.custom_field_options || []).some((o: any) =>
+        ["atelier", "magasin", "comptabilite"].includes(norm(String(o.name).split("::").pop()!)))) || cats[0];
       if (!catField) warn.push("Aucun champ « Catégorie » trouvé dans Zendesk : colonne laissée vide.");
     } catch (e) {
       warn.push("Champs Zendesk non lus : " + String((e as Error).message || e));
