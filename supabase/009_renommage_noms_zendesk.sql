@@ -1,6 +1,7 @@
 -- 009 : aligne les noms des consultants sur leur nom Zendesk
 --   « Maria Jose HERNANDEZ » → « Maria Jose HERNANDEZ FERNANDEZ »
 --   « Jeannine FLORE »       → « Jeannine Flore Signing M. »
+-- et ajoute « Nuno ALMEIDA CORREIA » (APV), archivé car il a quitté l'équipe.
 -- Renomme la personne (pôle et statut conservés), ses tickets (session en cours et archives) et ses tickets pris.
 -- Tout ou rien : en cas d'erreur, rien n'est modifié.
 -- L'historique (audit_log) garde les anciens noms, comme trace de ce qui s'est passé.
@@ -15,6 +16,12 @@ insert into renommage values
 update public.people       p set name     = r.nouveau from renommage r where p.name     = r.ancien;
 update public.tickets      t set assignee = r.nouveau from renommage r where t.assignee = r.ancien;
 update public.self_tickets s set person   = r.nouveau from renommage r where s.person   = r.ancien;
+
+-- Nuno ALMEIDA CORREIA : parti, ajouté directement en archivé (pôle APV) pour que ses tickets pris
+-- importés depuis Zendesk soient reconnus et comptés dans les statistiques
+insert into public.people (name, poles, archived)
+values ('Nuno ALMEIDA CORREIA', array['APV'], true)
+on conflict (name) do update set poles = excluded.poles, archived = true;
 
 -- Contrôle : plus aucune trace des anciens noms (nb = 0), et les compteurs des nouveaux noms
 select r.ancien || ' (ancien nom, doit être 0)' as controle,
@@ -31,6 +38,9 @@ select '   liste · ' || r.nouveau,        (select count(*) from public.people w
 union all
 select '   tickets · ' || r.nouveau,      (select count(*) from public.tickets where assignee = r.nouveau) from renommage r
 union all
-select '   tickets pris · ' || r.nouveau, (select count(*) from public.self_tickets where person = r.nouveau) from renommage r;
+select '   tickets pris · ' || r.nouveau, (select count(*) from public.self_tickets where person = r.nouveau) from renommage r
+union all
+select 'Nuno ALMEIDA CORREIA archivé APV (doit être 1)',
+       (select count(*) from public.people where name = 'Nuno ALMEIDA CORREIA' and archived and poles = array['APV']);
 
 commit;
