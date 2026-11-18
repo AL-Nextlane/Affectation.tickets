@@ -3900,8 +3900,8 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
   $('takenToggle').addEventListener('click', function(){ setTakenOpen($('takenPanel').hidden); });
   /* ---------- Bêta : tickets pris récupérés automatiquement depuis Zendesk ---------- */
   // À l'ouverture de la page, la fonction Supabase « zendesk-pris » renvoie les tickets pris depuis le dernier import
-  // (conditions de la vue Zendesk). Ils sont enregistrés directement, avec les règles de l'import Excel :
-  // consultant reconnu, ticket déjà affecté par l'équipe non compté deux fois, ticket déjà importé mis à jour.
+  // (conditions de la vue Zendesk). Seuls les nouveaux tickets sont enregistrés : consultant reconnu,
+  // ticket déjà affecté par l'équipe non compté deux fois, ticket déjà importé (Excel ou Zendesk) laissé tel quel.
   var TAKEN_SYNC_KEY = 'zendeskTakenSync', TAKEN_SYNC_EVERY = 10 * 60 * 1000; // pas plus d'une fois toutes les 10 minutes par poste
   async function syncTakenFromZendesk(){
     if (!takenAvailable || !me) return;
@@ -3924,37 +3924,29 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     }
     try { localStorage.setItem(TAKEN_SYNC_KEY, String(Date.now())); } catch (e){}
 
-    var known = {}, team = {}, unknown = {}, added = 0, updated = 0, at = new Date().toISOString();
-    state.taken.forEach(function(t){ known[t.id] = t; });
+    var known = {}, team = {}, unknown = {}, added = 0, at = new Date().toISOString();
+    state.taken.forEach(function(t){ known[t.id] = true; });
     allTickets().forEach(function(t){ var k = (t.cells[0] || '').trim(); if (k && t.assignee) team[k] = true; });
     (data.tickets || []).forEach(function(z){
-      var id = String(z.id || '').trim(); if (!id || team[id]) return;
+      var id = String(z.id || '').trim();
+      if (!id || known[id] || team[id]) return; // déjà importé (Excel ou Zendesk) ou affecté par l'équipe : laissé tel quel
       var person = matchPerson(z.assigne || ''), d = parseDate(z.affecte);
       if (!person){ if (z.assigne) unknown[z.assigne] = true; return; }
       if (!d) return;
-      var row = { person: person, takenOn: isoDay(d), label: z.sujet || '', pole: /^vente/.test(norm(z.categorie)) ? 'Vente VN-VO' : (z.categorie || ''),
-        org: z.organisation || '', requester: z.demandeur || '' };
-      var ex = known[id];
-      if (!ex){
-        row.id = id; row.importedAt = at; state.taken.push(row); known[id] = row; added++;
-        return;
-      }
-      var changed = false; // une valeur vide ne remplace pas la valeur enregistrée
-      Object.keys(row).forEach(function(k){ if (row[k] && row[k] !== (ex[k] || '')){ ex[k] = row[k]; changed = true; } });
-      if (changed) updated++;
+      state.taken.push({ id: id, person: person, takenOn: isoDay(d), label: z.sujet || '',
+        pole: /^vente/.test(norm(z.categorie)) ? 'Vente VN-VO' : (z.categorie || ''),
+        org: z.organisation || '', requester: z.demandeur || '', importedAt: at });
+      known[id] = true; added++;
     });
     var unk = Object.keys(unknown);
-    if (!added && !updated){
+    if (!added){
       if (unk.length && isAdmin()) $('takenMsg').innerHTML = '<span class="err-text">Zendesk : consultants non reconnus, tickets non comptés : ' + unk.map(esc).join(', ') + '.</span>';
       return;
     }
     takenUndo = save();
-    audit('tickets_pris_importes', { tickets: added + updated, nouveaux: added, mis_a_jour: updated, source: 'zendesk' });
+    audit('tickets_pris_importes', { tickets: added, nouveaux: added, mis_a_jour: 0, source: 'zendesk' });
     renderTaken(); renderStats(); renderArchive(); renderBanner();
-    var parts = [];
-    if (added) parts.push(plural(added, 'nouveau ticket pris', 'nouveaux tickets pris'));
-    if (updated) parts.push(plural(updated, 'ticket pris mis à jour', 'tickets pris mis à jour'));
-    $('takenMsg').innerHTML = '<strong>Récupéré automatiquement depuis Zendesk :</strong> ' + parts.join(', ') + '. ' +
+    $('takenMsg').innerHTML = '<strong>Récupéré automatiquement depuis Zendesk :</strong> ' + plural(added, 'nouveau ticket pris', 'nouveaux tickets pris') + '. ' +
       '<button type="button" class="link-btn" id="takenUndoBtn">Annuler cet import</button>' +
       (unk.length ? '<br><span class="err-text">Consultants non reconnus, tickets non comptés : ' + unk.map(esc).join(', ') + '.</span>' : '');
   }
