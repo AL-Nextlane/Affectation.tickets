@@ -50,7 +50,7 @@ async function zendeskToken(base: string): Promise<string> {
       grant_type: "client_credentials",
       client_id: Deno.env.get("ZENDESK_CLIENT_ID"),
       client_secret: Deno.env.get("ZENDESK_CLIENT_SECRET"),
-      scope: "tickets:read tickets:write",
+      scope: "read tickets:write", // « read » : nécessaire pour suivre la tâche de mise à jour (job_statuses)
     }),
   });
   const j = await r.json().catch(() => ({}));
@@ -114,10 +114,19 @@ Deno.serve(async (req) => {
     for (let i = 0; i < valid.length; i += 100) {
       const part = valid.slice(i, i + 100);
       const job = (await zcall(base, "PUT", "/api/v2/tickets/update_many.json", { tickets: part })).job_status;
-      let st = job, waited = 0;
-      while (st && !["completed", "failed", "killed"].includes(st.status) && waited < 60_000) {
-        await sleep(1500); waited += 1500;
-        st = (await zcall(base, "GET", "/api/v2/job_statuses/" + job.id + ".json")).job_status;
+      // À partir d'ici, Zendesk a accepté le lot : une erreur de suivi ne veut pas dire que rien n'a été fait
+      let st = job, waited = 0, suivi = "";
+      try {
+        while (st && !["completed", "failed", "killed"].includes(st.status) && waited < 60_000) {
+          await sleep(1500); waited += 1500;
+          st = (await zcall(base, "GET", "/api/v2/job_statuses/" + job.id + ".json")).job_status;
+        }
+      } catch (e) {
+        suivi = String((e as Error).message || e);
+      }
+      if (suivi) {
+        for (const p of part) results[String(p.id)] = { ticket: String(p.id), ok: false, raison: "envoyé à Zendesk, résultat non vérifiable (" + suivi + ") : à contrôler dans Zendesk" };
+        continue;
       }
       const byId: Record<string, any> = {};
       for (const r of st?.results || []) byId[String(r.id)] = r;
