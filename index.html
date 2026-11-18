@@ -164,6 +164,15 @@ body.is-admin .user-only{display:none!important}
   background:linear-gradient(135deg,var(--accent-soft),transparent 140%),var(--surface);
   border-left:3px solid var(--accent);border-radius:4px 12px 12px 4px;padding:8px 0;box-shadow:var(--shadow);
 }
+.banner-wrap{display:flex;flex-direction:column;align-items:flex-end;gap:4px;min-width:0}
+.sync-info{margin:0;font-size:11.5px;color:var(--muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.sync-info[hidden]{display:none}
+.sync-info .link-btn{font-size:11.5px;font-weight:500}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:#1f9d55;flex:none}
+.sync-dot.busy{background:var(--gold);animation:sync-pulse 1s ease-in-out infinite alternate}
+.sync-dot.err{background:var(--danger)}
+@keyframes sync-pulse{from{opacity:.35}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){.sync-dot.busy{animation:none}}
 .banner-item{position:relative;padding:0 16px;border-left:1px solid var(--line);min-width:0;cursor:default}
 .banner-item:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
 .banner-pop{
@@ -955,7 +964,10 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       <button class="tab" role="tab" id="tab-stats" aria-controls="panel-stats" aria-selected="false">Statistiques consultant<small id="tabStatsSub">0 consultant</small></button>
       <button class="tab" role="tab" id="tab-clients" aria-controls="panel-clients" aria-selected="false">Statistiques client<small id="tabClientsSub">0 client</small></button>
     </div>
-    <div class="banner" id="banner" aria-label="L'essentiel"></div>
+    <div class="banner-wrap">
+      <div class="banner" id="banner" aria-label="L'essentiel"></div>
+      <p class="sync-info no-print" id="zendeskSync" role="status" aria-live="polite" hidden></p>
+    </div>
   </div>
 
   <!-- Onglet Tickets -->
@@ -3932,9 +3944,39 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
   // (conditions de la vue Zendesk). Seuls les nouveaux tickets sont enregistrés : consultant reconnu,
   // ticket déjà affecté par l'équipe non compté deux fois, ticket déjà importé (Excel ou Zendesk) laissé tel quel.
   var TAKEN_SYNC_KEY = 'zendeskTakenSync', TAKEN_SYNC_EVERY = 10 * 60 * 1000; // pas plus d'une fois toutes les 10 minutes par poste
-  async function syncTakenFromZendesk(){
-    if (!takenAvailable || !me) return;
-    try { var last = +localStorage.getItem(TAKEN_SYNC_KEY) || 0; if (Date.now() - last < TAKEN_SYNC_EVERY) return; } catch (e){}
+  // État affiché près de l'encadré 5 jours / 30 jours : dernière synchronisation réussie de ce poste, en cours, erreur
+  var zSync = { at: 0, busy: false, error: '' };
+  try { zSync.at = +localStorage.getItem(TAKEN_SYNC_KEY) || 0; } catch (e){}
+  function agoText(ms){
+    var min = Math.floor((Date.now() - ms) / 60000);
+    if (min < 1) return 'à l\'instant';
+    if (min < 60) return 'il y a ' + min + ' min';
+    var h = Math.floor(min / 60);
+    if (h < 24) return 'il y a ' + h + ' h' + (min % 60 ? ' ' + pad(min % 60) : '');
+    return 'le ' + new Date(ms).toLocaleDateString('fr-FR') + ' à ' + new Date(ms).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  }
+  function renderSyncInfo(){
+    var el = $('zendeskSync');
+    if (!BETA || !takenAvailable){ el.hidden = true; return; }
+    el.hidden = false;
+    var text = zSync.busy ? 'Synchronisation des tickets pris avec Zendesk…'
+      : zSync.error ? '<span class="err-text">Synchronisation Zendesk impossible</span>'
+      : zSync.at ? 'Tickets pris synchronisés avec Zendesk ' + agoText(zSync.at)
+      : 'Tickets pris pas encore synchronisés avec Zendesk';
+    el.innerHTML = '<span class="sync-dot' + (zSync.busy ? ' busy' : zSync.error ? ' err' : '') + '" aria-hidden="true"></span>' + text +
+      (zSync.busy ? '' : ' · <button type="button" class="link-btn" id="zendeskSyncNow">Synchroniser maintenant</button>');
+    el.title = zSync.error ? zSync.error : zSync.at ? 'Dernière synchronisation réussie de ce poste : ' + new Date(zSync.at).toLocaleString('fr-FR') : '';
+  }
+  setInterval(renderSyncInfo, 60000); // « il y a x min » reste à jour
+  $('zendeskSync').addEventListener('click', function(e){ if (e.target.id === 'zendeskSyncNow') syncTakenFromZendesk(true); });
+
+  async function syncTakenFromZendesk(force){
+    if (!takenAvailable || !me || zSync.busy) return;
+    if (!force && Date.now() - zSync.at < TAKEN_SYNC_EVERY){ renderSyncInfo(); return; }
+    zSync.busy = true; zSync.error = ''; renderSyncInfo();
+    try { await doSyncTaken(); } finally { zSync.busy = false; renderSyncInfo(); }
+  }
+  async function doSyncTaken(){
     // Depuis le dernier import (un jour de marge : un ticket revu une deuxième fois ne change rien), 30 jours au plus
     var lastImport = state.taken.reduce(function(m, t){ return t.importedAt && t.importedAt > m ? t.importedAt : m; }, '');
     var depuis = lastImport ? new Date(new Date(lastImport).getTime() - 864e5).toISOString() : '';
@@ -3948,10 +3990,12 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     } catch (e){ data = { erreur: e.message || String(e) }; }
     if (data.erreur){
       console.warn('Tickets pris Zendesk :', data);
+      zSync.error = data.erreur;
       if (isAdmin()) $('takenMsg').innerHTML = '<span class="err-text">Récupération automatique des tickets pris depuis Zendesk impossible : ' + esc(data.erreur) + '</span>';
       return;
     }
-    try { localStorage.setItem(TAKEN_SYNC_KEY, String(Date.now())); } catch (e){}
+    zSync.at = Date.now();
+    try { localStorage.setItem(TAKEN_SYNC_KEY, String(zSync.at)); } catch (e){}
 
     var known = {}, team = {}, unknown = {}, added = 0, at = new Date().toISOString();
     state.taken.forEach(function(t){ known[t.id] = true; });
