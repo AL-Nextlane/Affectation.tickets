@@ -165,7 +165,7 @@ body.is-admin .user-only{display:none!important}
   border-left:3px solid var(--accent);border-radius:4px 12px 12px 4px;padding:8px 0;box-shadow:var(--shadow);
 }
 .banner-wrap{display:flex;flex-direction:column;align-items:flex-end;gap:4px;min-width:0}
-/* Statut de synchronisation Zendesk : pastille discrète sous l'encadré 5 j / 30 j */
+/* Statut de synchronisation Zendesk : pastille discrète au-dessus de l'encadré 5 j / 30 j */
 .sync-info{
   --sync:#1f9d55;
   margin:0;display:inline-flex;align-items:center;gap:7px;max-width:100%;
@@ -983,8 +983,8 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       <button class="tab" role="tab" id="tab-clients" aria-controls="panel-clients" aria-selected="false">Statistiques client<small id="tabClientsSub">0 client</small></button>
     </div>
     <div class="banner-wrap">
-      <div class="banner" id="banner" aria-label="L'essentiel"></div>
       <p class="sync-info no-print" id="zendeskSync" role="status" aria-live="polite" hidden></p>
+      <div class="banner" id="banner" aria-label="L'essentiel"></div>
     </div>
   </div>
 
