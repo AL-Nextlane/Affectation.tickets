@@ -3307,14 +3307,19 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
   bindSort('ticketTable', 'tickets', renderTickets);
   bindSort('arTable', 'archive', renderArchive);
   function fmtDay(iso){ var d = parseDate(iso); return d ? d.toLocaleDateString('fr-FR') : ''; }
+  // Archives : la dernière session est affichée par défaut (toutes les sessions deviendraient longues à afficher).
+  // Tant que la personne n'a pas choisi une session elle-même, la sélection suit la plus récente.
+  var arAuto = { arSession: true, arTakenSession: true };
   function renderArchive(){
     var counts = {};
     state.archive.forEach(function(t){ counts[t.sessionId] = (counts[t.sessionId] || 0) + 1; });
     var ss = $('arSession'), curS = ss.value;
-    ss.innerHTML = '<option value="">Toutes les sessions</option>' + state.sessions.slice().reverse().filter(function(s){ return counts[s.id]; }).map(function(s){
+    var list = state.sessions.slice().reverse().filter(function(s){ return counts[s.id]; });
+    ss.innerHTML = '<option value="">Toutes les sessions</option>' + list.map(function(s){
       return '<option value="' + s.id + '">' + fmtDateTime(s.at) + ' · ' + plural(counts[s.id], 'ticket', 'tickets') + '</option>';
     }).join('');
-    ss.value = curS; if (ss.value !== curS) ss.value = '';
+    if (arAuto.arSession) curS = list.length ? list[0].id : '';
+    ss.value = curS; if (ss.value !== curS) ss.value = list.length ? list[0].id : ''; // session supprimée : la plus récente
     syncOptButton('arSession');
     var sp = $('arPerson'), curP = sp.value, people = [];
     state.archive.forEach(function(t){ if (t.assignee && people.indexOf(t.assignee) < 0) people.push(t.assignee); });
@@ -3365,11 +3370,13 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       var k = takenSession(t), g = groups[k] = groups[k] || { at: t.importedAt, n: 0 };
       g.n++;
     });
-    var sel = $('arTakenSession'), cur = sel.value;
-    sel.innerHTML = '<option value="">Toutes les sessions</option>' + Object.keys(groups).sort().reverse().map(function(k){
+    var sel = $('arTakenSession'), cur = sel.value, keys = Object.keys(groups).sort().reverse();
+    var latest = keys.filter(Boolean)[0] || '';
+    sel.innerHTML = '<option value="">Toutes les sessions</option>' + keys.map(function(k){
       return '<option value="' + esc(k) + '">' + (k ? fmtDateTime(groups[k].at) : 'Date inconnue') + ' · ' + plural(groups[k].n, 'ticket', 'tickets') + '</option>';
     }).join('');
-    sel.value = cur; if (sel.value !== cur) sel.value = '';
+    if (arAuto.arTakenSession) cur = latest; // dernier import par défaut
+    sel.value = cur; if (sel.value !== cur) sel.value = latest;
     syncOptButton('arTakenSession');
     var q = $('arSearch').value.trim().toLowerCase(), who = $('arPerson').value, ses = sel.value;
     var rows = state.taken.filter(function(t){
@@ -3394,6 +3401,8 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     }).join('') : '<tr><td colspan="8" class="empty" style="padding:20px;white-space:normal">' +
       (state.taken.length ? 'Aucun ticket pris ne correspond aux filtres.' : 'Aucun ticket pris pour l\'instant. Importez-les avec le bouton « Importer des tickets pris ».') + '</td></tr>';
   }
+  // Un choix fait par la personne (y compris « Toutes les sessions ») est gardé jusqu'au rechargement de la page
+  ['arSession', 'arTakenSession'].forEach(function(id){ $(id).addEventListener('change', function(){ arAuto[id] = false; }); });
   $('arTakenSession').addEventListener('change', renderArchiveTaken);
   ['arSearch', 'arSession'].forEach(function(id){
     $(id).addEventListener(id === 'arSearch' ? 'input' : 'change', renderArchive);
