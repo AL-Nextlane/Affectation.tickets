@@ -1017,7 +1017,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
               <button class="menu-item" id="togglePeople" type="button" role="menuitem" aria-expanded="false" aria-controls="peoplePanel">Personnes à affecter</button>
             </div>
           </span>
-          <button class="btn admin-only" id="zendeskBtn" type="button" style="display:none" title="Tickets Zendesk tag ticket_challenge, sans agent, nouveaux ou ouverts, groupes N1 / N2 ICS et CE Customer Support">Récupérer depuis Zendesk</button>
+          <button class="btn" id="zendeskBtn" type="button" style="display:none" title="Tickets Zendesk tag ticket_challenge, sans agent, nouveaux ou ouverts, groupes N1 / N2 ICS et CE Customer Support">Récupérer depuis Zendesk</button>
           <button class="btn danger admin-only" id="clearBtn" type="button">Vider les tickets</button>
           <span class="validate-stack">
             <span class="mail-row">
@@ -4403,7 +4403,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
   /* ---------- Rôle de l'utilisateur ---------- */
   function renderRole(){
     document.body.classList.toggle('is-admin', isAdmin());
-    $('zendeskBtn').style.display = ZENDESK ? '' : 'none'; // réservé aux administrateurs (classe admin-only)
+    $('zendeskBtn').style.display = ZENDESK ? '' : 'none'; // visible pour tous (une confirmation est demandée avant tout ajout)
     if (me){ $('meEmail').textContent = me.email; $('meEmail').title = me.email; $('meRole').textContent = isAdmin() ? 'Administrateur' : 'Utilisateur'; }
   }
 
