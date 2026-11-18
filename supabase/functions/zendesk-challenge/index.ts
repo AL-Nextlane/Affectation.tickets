@@ -7,8 +7,8 @@
 // Test depuis le tableau de bord : en-tête « x-cle-admin » = clé secrète du projet.
 
 const TAG = "ticket_challenge";
-// Droits demandés : si Zendesk en exige d'autres, son message d'erreur les nomme (« missing the following required scopes »)
-const SCOPE = "tickets:read users:read organizations:read";
+// La recherche Zendesk (/api/v2/search) exige le droit de lecture général « read » (lecture seule sur tout le compte)
+const SCOPE = "read";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
