@@ -1306,7 +1306,8 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
   // Initiales prénom + nom des consultants (les noms affichés restent le prénom seul)
   var KNOWN_INITIALS = {
     'antoine': 'AL', 'christophe': 'CM', 'diogo': 'DR', 'hanh': 'HN', 'jeyson': 'JA', 'loic': 'LW',
-    'luc': 'LM', 'maria-jose': 'MH', 'maria jose': 'MH', 'maria': 'MS', 'raphael': 'RR', 'sylvie': 'SR', 'theo': 'TB'
+    'luc': 'LM', 'maria-jose': 'MH', 'maria jose': 'MH', 'maria': 'MS', 'raphael': 'RR', 'sylvie': 'SR', 'theo': 'TB',
+    'jeannine flore signing m.': 'JF' // nom Zendesk : les initiales restent celles de « Jeannine FLORE »
   };
   // Pôle des consultants : un seul par personne (la base garde une liste, seul le premier compte)
   var CONSULTANT_POLES = [['APV', 'apv'], ['Technique', 'tech'], ['VN/VO', 'vnvo'], ['Compta', 'compta'], ['Manager', 'manager']];
