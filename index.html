@@ -165,14 +165,32 @@ body.is-admin .user-only{display:none!important}
   border-left:3px solid var(--accent);border-radius:4px 12px 12px 4px;padding:8px 0;box-shadow:var(--shadow);
 }
 .banner-wrap{display:flex;flex-direction:column;align-items:flex-end;gap:4px;min-width:0}
-.sync-info{margin:0;font-size:11.5px;color:var(--muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+/* Statut de synchronisation Zendesk : pastille discrète sous l'encadré 5 j / 30 j */
+.sync-info{
+  --sync:#1f9d55;
+  margin:0;display:inline-flex;align-items:center;gap:7px;max-width:100%;
+  padding:3px 3px 3px 10px;border-radius:999px;border:1px solid var(--line);
+  background:var(--surface);box-shadow:0 1px 2px rgba(20,26,42,.05);
+  font-size:11.5px;line-height:1.2;color:var(--muted);white-space:nowrap;
+}
 .sync-info[hidden]{display:none}
-.sync-info .link-btn{font-size:11.5px;font-weight:500}
-.sync-dot{width:7px;height:7px;border-radius:50%;background:#1f9d55;flex:none}
-.sync-dot.busy{background:var(--gold);animation:sync-pulse 1s ease-in-out infinite alternate}
-.sync-dot.err{background:var(--danger)}
-@keyframes sync-pulse{from{opacity:.35}to{opacity:1}}
-@media (prefers-reduced-motion:reduce){.sync-dot.busy{animation:none}}
+.sync-info.is-busy{--sync:var(--gold)}
+.sync-info.is-err{--sync:var(--danger);border-color:color-mix(in srgb,var(--danger) 35%,var(--line));background:var(--danger-soft);color:var(--danger)}
+.sync-info.is-none{--sync:var(--muted)}
+.sync-text{overflow:hidden;text-overflow:ellipsis}
+.sync-text b{font-weight:600;color:var(--text)}
+.sync-info.is-err .sync-text b{color:inherit}
+.sync-dot{position:relative;width:7px;height:7px;border-radius:50%;background:var(--sync);flex:none}
+.sync-info.is-ok .sync-dot{box-shadow:0 0 0 3px color-mix(in srgb,var(--sync) 18%,transparent)}
+.sync-info.is-busy .sync-dot::after{content:"";position:absolute;inset:-3px;border-radius:50%;border:1.5px solid var(--sync);animation:sync-ping 1.2s ease-out infinite}
+.sync-btn{display:grid;place-items:center;width:22px;height:22px;flex:none;border:0;border-radius:50%;background:transparent;color:var(--muted);cursor:pointer;transition:background .15s,color .15s}
+.sync-btn:hover:not(:disabled),.sync-btn:focus-visible{background:var(--surface-2);color:var(--accent);outline:none}
+.sync-btn:disabled{cursor:default}
+.sync-info.is-err .sync-btn{color:var(--danger)}
+.sync-info.is-busy .sync-btn svg{animation:sync-spin .9s linear infinite}
+@keyframes sync-ping{from{transform:scale(.6);opacity:1}to{transform:scale(1.6);opacity:0}}
+@keyframes sync-spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.sync-info.is-busy .sync-dot::after,.sync-info.is-busy .sync-btn svg{animation:none}}
 .banner-item{position:relative;padding:0 16px;border-left:1px solid var(--line);min-width:0;cursor:default}
 .banner-item:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
 .banner-pop{
@@ -3959,16 +3977,19 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     var el = $('zendeskSync');
     if (!BETA || !takenAvailable){ el.hidden = true; return; }
     el.hidden = false;
-    var text = zSync.busy ? 'Synchronisation des tickets pris avec Zendesk…'
-      : zSync.error ? '<span class="err-text">Synchronisation Zendesk impossible</span>'
-      : zSync.at ? 'Tickets pris synchronisés avec Zendesk ' + agoText(zSync.at)
-      : 'Tickets pris pas encore synchronisés avec Zendesk';
-    el.innerHTML = '<span class="sync-dot' + (zSync.busy ? ' busy' : zSync.error ? ' err' : '') + '" aria-hidden="true"></span>' + text +
-      (zSync.busy ? '' : ' · <button type="button" class="link-btn" id="zendeskSyncNow">Synchroniser maintenant</button>');
-    el.title = zSync.error ? zSync.error : zSync.at ? 'Dernière synchronisation réussie de ce poste : ' + new Date(zSync.at).toLocaleString('fr-FR') : '';
+    var state = zSync.busy ? 'busy' : zSync.error ? 'err' : zSync.at ? 'ok' : 'none';
+    var text = { busy: 'synchronisation…', err: 'synchronisation impossible', ok: 'synchronisé ' + agoText(zSync.at), none: 'pas encore synchronisé' }[state];
+    el.className = 'sync-info no-print is-' + state;
+    el.innerHTML = '<span class="sync-dot" aria-hidden="true"></span>' +
+      '<span class="sync-text"><b>Tickets pris</b> · Zendesk ' + text + '</span>' +
+      '<button type="button" class="sync-btn" id="zendeskSyncNow"' + (zSync.busy ? ' disabled' : '') +
+        ' title="' + (state === 'err' ? 'Réessayer' : 'Synchroniser maintenant') + '" aria-label="' + (state === 'err' ? 'Réessayer la synchronisation' : 'Synchroniser maintenant') + '">' +
+        '<svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M20 12a8 8 0 0 1-13.7 5.7M4 12a8 8 0 0 1 13.7-5.7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>' +
+        '<path d="M18 2.5v4.2h-4.2M6 21.5v-4.2h4.2" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>';
+    el.title = zSync.error ? 'Erreur : ' + zSync.error : zSync.at ? 'Dernière synchronisation réussie de ce poste : ' + new Date(zSync.at).toLocaleString('fr-FR') : '';
   }
   setInterval(renderSyncInfo, 60000); // « il y a x min » reste à jour
-  $('zendeskSync').addEventListener('click', function(e){ if (e.target.id === 'zendeskSyncNow') syncTakenFromZendesk(true); });
+  $('zendeskSync').addEventListener('click', function(e){ if (e.target.closest('#zendeskSyncNow')) syncTakenFromZendesk(true); });
 
   async function syncTakenFromZendesk(force){
     if (!takenAvailable || !me || zSync.busy) return;
