@@ -2962,14 +2962,25 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       '<p class="modal-note"><strong>' + plural(plan.send.length, 'ticket sera affecté', 'tickets seront affectés') + ' dans Zendesk</strong>' +
       (same ? ' (' + plural(same, 'déjà assigné', 'déjà assignés') + ' à la bonne personne)' : '') + '.' +
       (issues.length ? ' Ne seront pas affectés :</p><ul class="zd-skip">' + list + (issues.length > 8 ? '<li>… et ' + (issues.length - 8) + ' autres</li>' : '') + '</ul><p class="modal-note">' : ' ') +
+      'Chaque ticket affecté reçoit une note interne avec la liste des affectations de la session. ' +
       'Annuler la validation ensuite ne défait pas les affectations faites dans Zendesk.</p>';
   }
-  async function zendeskAssign(plan){
+  // Note interne écrite sur chaque ticket affecté : son affectation, puis tous les tickets affectés pendant la session
+  //   « Affecté à Sophie DUPONT le 18/11/2026, session validée par la supervision. »
+  //   « 1254689 ➡️ Sophie DUPONT » …
+  function zendeskNote(p, done){
+    var day = new Date().toLocaleDateString('fr-FR');
+    var list = done.map(function(t){ return (t.cells[0] || '').trim() + ' ➡️ ' + t.assignee; }).join('\n');
+    return 'Affecté à ' + p.agent + ' le ' + day + ', session validée par la supervision.\n\nTickets affectés pendant la session :\n' + list;
+  }
+  async function zendeskAssign(plan, done){
     var msg = $('tableMsg');
     if (!plan || plan.error || !plan.send.length) return;
     msg.innerHTML = 'Affectation dans Zendesk en cours (' + plural(plan.send.length, 'ticket', 'tickets') + ')…';
     try {
-      var data = await zendeskCall('zendesk-affecter', { affectations: plan.send.map(function(p){ return { ticket: p.ticket, agent_id: p.agent_id, groupe_id: p.groupe_id }; }) });
+      var data = await zendeskCall('zendesk-affecter', { affectations: plan.send.map(function(p){
+        return { ticket: p.ticket, agent_id: p.agent_id, groupe_id: p.groupe_id, note: zendeskNote(p, done) };
+      }) });
       var bad = (data.resultats || []).filter(function(r){ return !r.ok; });
       audit('zendesk_affecte', { affectes: data.affectes || 0, erreurs: bad.length });
       msg.innerHTML = '<strong>Zendesk : ' + plural(data.affectes || 0, 'ticket affecté', 'tickets affectés') + '.</strong>' +
@@ -2999,7 +3010,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       confirmLabel: plan && !plan.error && plan.send.length ? 'Valider et affecter dans Zendesk' : 'Valider la session', tone: 'success' });
     if (!ok) return;
     validateSession(done, rest);
-    if (plan) zendeskAssign(plan);
+    if (plan) zendeskAssign(plan, done);
   });
   function validateSession(done, rest){
     var ses = { id: uid(), at: new Date().toISOString() }, today = isoDay(new Date());

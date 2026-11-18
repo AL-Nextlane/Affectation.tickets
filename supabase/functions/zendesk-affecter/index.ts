@@ -1,6 +1,7 @@
 // Fonction Supabase « zendesk-affecter » : MODIFIE Zendesk (assigné des tickets).
 // Corps attendu :
-//   { "affectations": [ { "ticket": "12345", "agent_id": 987654, "groupe_id": 360000000 }, ... ], "essai": true }
+//   { "affectations": [ { "ticket": "12345", "agent_id": 987654, "groupe_id": 360000000, "note": "…" }, ... ], "essai": true }
+// - note (facultatif) : écrite en note interne (commentaire privé) sur le ticket, dans la même mise à jour
 // - agent_id : identifiant Zendesk de l'agent (renvoyé par la fonction zendesk-verif)
 // - groupe_id (facultatif) : groupe de destination (« nouveau_groupe_id » renvoyé par zendesk-verif)
 // - essai: true → ne modifie rien, renvoie seulement ce qui serait fait
@@ -92,19 +93,24 @@ Deno.serve(async (req) => {
   // Contrôle des données reçues avant tout envoi à Zendesk
   const results: Record<string, any> = {};
   // groupe_id (facultatif) : groupe de destination, quand le ticket doit quitter son groupe actuel (file d'arrivée)
-  const valid: { id: number; assignee_id: number; group_id?: number }[] = [];
+  // note (facultative) : texte écrit en NOTE INTERNE (commentaire privé, invisible du client) sur le ticket
+  const valid: { id: number; assignee_id: number; group_id?: number; comment?: { body: string; public: false } }[] = [];
   for (const a of list) {
     const t = String(a?.ticket ?? "").trim(), ag = Number(a?.agent_id), gr = a?.groupe_id == null ? null : Number(a.groupe_id);
+    const note = typeof a?.note === "string" ? a.note.trim().slice(0, 20000) : "";
     if (!/^\d+$/.test(t)) { results[t] = { ticket: t, ok: false, raison: "pas un numéro de ticket Zendesk" }; continue; }
     if (!Number.isInteger(ag) || ag <= 0) { results[t] = { ticket: t, ok: false, raison: "agent Zendesk inconnu" }; continue; }
     if (gr !== null && (!Number.isInteger(gr) || gr <= 0)) { results[t] = { ticket: t, ok: false, raison: "groupe Zendesk invalide" }; continue; }
-    valid.push(gr ? { id: Number(t), assignee_id: ag, group_id: gr } : { id: Number(t), assignee_id: ag });
+    const v: any = { id: Number(t), assignee_id: ag };
+    if (gr) v.group_id = gr;
+    if (note) v.comment = { body: note, public: false };
+    valid.push(v);
   }
   if (body.essai) {
     // Rien n'est modifié, mais on vérifie que Zendesk accorde bien le droit d'écriture (tickets:write)
     let droit_ecriture: unknown = true;
     try { await zendeskToken(base); } catch (e) { droit_ecriture = String((e as Error).message || e); }
-    for (const v of valid) results[String(v.id)] = { ticket: String(v.id), ok: true, essai: true, agent_id: v.assignee_id, groupe_id: v.group_id };
+    for (const v of valid) results[String(v.id)] = { ticket: String(v.id), ok: true, essai: true, agent_id: v.assignee_id, groupe_id: v.group_id, note: v.comment?.body };
     return reply({ essai: true, droit_ecriture, resultats: Object.values(results) });
   }
 
