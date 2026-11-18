@@ -3572,16 +3572,23 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
   // Client d'une organisation, par ordre de priorité :
   //   1. rattachement manuel de l'organisation ; 2. client de son groupe ; 3. son groupe, sous le nom proposé ; 4. elle-même
   var orgGroups = {}, orgGroupsAvailable = false;
+  // Index des groupes (nom proposé, organisations) calculé une fois, puis remis à zéro quand orgGroups change
+  var grpIdx = null;
+  function grpIndex(){
+    if (grpIdx) return grpIdx;
+    grpIdx = { names: {}, members: {} };
+    Object.keys(orgGroups).forEach(function(k){
+      var g = orgGroups[k]; if (!g.grp) return;
+      if (g.name && !grpIdx.names[g.grp]) grpIdx.names[g.grp] = g.name;
+      (grpIdx.members[g.grp] = grpIdx.members[g.grp] || []).push(g.org);
+    });
+    Object.keys(grpIdx.members).forEach(function(c){ grpIdx.members[c].sort(function(a, b){ return a.localeCompare(b, 'fr'); }); });
+    return grpIdx;
+  }
   function grpKey(code){ return 'grp:' + code; }
   function grpOf(orgKey){ var g = orgGroups[orgKey]; return g && g.grp ? g.grp : ''; }
-  function grpName(code){
-    for (var k in orgGroups) if (orgGroups[k].grp === code && orgGroups[k].name) return orgGroups[k].name;
-    return code;
-  }
-  function grpMembers(code){
-    return Object.keys(orgGroups).filter(function(k){ return orgGroups[k].grp === code; }).map(function(k){ return orgGroups[k].org; })
-      .sort(function(a, b){ return a.localeCompare(b, 'fr'); });
-  }
+  function grpName(code){ return grpIndex().names[code] || code; }
+  function grpMembers(code){ return (grpIndex().members[code] || []).slice(); }
   function clientOf(raw){
     var k = norm(raw), manual = state.clients[k];
     if (manual) return { key: 'c:' + norm(manual.client), name: manual.client, grouped: true };
@@ -3616,6 +3623,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
         });
         check(await db.from('org_groups').upsert(rows, { onConflict: 'org_key' }));
         rows.forEach(function(r){ orgGroups[r.org_key] = { org: r.org, grp: r.grp || '', name: r.grp_name || '' }; });
+        grpIdx = null;
         grpSync.done += part.length; renderGroupSync();
       }
       grpSync.last = new Date().toISOString();
@@ -4244,13 +4252,13 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     var el = $('zendeskSync');
     if (!ZENDESK || !takenAvailable){ el.hidden = true; return; }
     el.hidden = false;
-    var state = zSync.busy ? 'busy' : zSync.error ? 'err' : zSync.at ? 'ok' : 'none';
-    var text = { busy: 'synchronisation…', err: 'synchronisation impossible', ok: 'synchronisé ' + agoText(zSync.at), none: 'pas encore synchronisé' }[state];
-    el.className = 'sync-info no-print is-' + state;
+    var st = zSync.busy ? 'busy' : zSync.error ? 'err' : zSync.at ? 'ok' : 'none';
+    var text = { busy: 'synchronisation…', err: 'synchronisation impossible', ok: 'synchronisé ' + agoText(zSync.at), none: 'pas encore synchronisé' }[st];
+    el.className = 'sync-info no-print is-' + st;
     el.innerHTML = '<span class="sync-dot" aria-hidden="true"></span>' +
       '<span class="sync-text"><b>Tickets pris</b> · Zendesk ' + text + '</span>' +
       '<button type="button" class="sync-btn" id="zendeskSyncNow"' + (zSync.busy ? ' disabled' : '') +
-        ' title="' + (state === 'err' ? 'Réessayer' : 'Synchroniser maintenant') + '" aria-label="' + (state === 'err' ? 'Réessayer la synchronisation' : 'Synchroniser maintenant') + '">' +
+        ' title="' + (st === 'err' ? 'Réessayer' : 'Synchroniser maintenant') + '" aria-label="' + (st === 'err' ? 'Réessayer la synchronisation' : 'Synchroniser maintenant') + '">' +
         '<svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M20 12a8 8 0 0 1-13.7 5.7M4 12a8 8 0 0 1 13.7-5.7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>' +
         '<path d="M18 2.5v4.2h-4.2M6 21.5v-4.2h4.2" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>';
     el.title = zSync.error ? 'Erreur : ' + zSync.error : zSync.at ? 'Dernière synchronisation réussie de ce poste : ' + new Date(zSync.at).toLocaleString('fr-FR') : '';
@@ -4586,7 +4594,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     try {
       var og = {};
       (await fetchAll('org_groups', 'org_key')).forEach(function(r){ og[r.org_key] = { org: r.org, grp: r.grp || '', name: r.grp_name || '' }; });
-      orgGroups = og; orgGroupsAvailable = true;
+      orgGroups = og; orgGroupsAvailable = true; grpIdx = null;
     }
     catch(err){ orgGroups = {}; orgGroupsAvailable = false; }
     state = normalize(next);
@@ -4848,7 +4856,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       renderAll(); show('app');
       subscribe();
       if (ZENDESK){ // synchronisations Zendesk en arrière-plan, sans bloquer l'affichage
-        syncTakenFromZendesk().then(function(){ return syncOrgGroups(); });
+        syncTakenFromZendesk().catch(function(e){ console.warn(e); }).then(function(){ return syncOrgGroups(); }).catch(function(e){ console.warn(e); });
       }
     } catch(err){
       console.error(err);

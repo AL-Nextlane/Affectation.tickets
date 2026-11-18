@@ -34,7 +34,15 @@ async function allowed(req: Request): Promise<boolean> {
     const r = await fetch(url + "/auth/v1/user", {
       headers: { Authorization: "Bearer " + token, apikey: Deno.env.get("SUPABASE_ANON_KEY") || "" },
     });
-    if (r.ok) return true;
+    if (r.ok) {
+      // Compte connecté : il doit aussi être membre de l'application (table members, fonction is_member)
+      const m = await fetch(url + "/rest/v1/rpc/is_member", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + token, apikey: Deno.env.get("SUPABASE_ANON_KEY") || "", "Content-Type": "application/json" },
+        body: "{}",
+      });
+      if (m.ok && (await m.json().catch(() => false)) === true) return true;
+    }
   }
   // Clé secrète : seule une clé d'administration peut lister les comptes
   const key = (req.headers.get("x-cle-admin") || "").trim();
@@ -43,6 +51,16 @@ async function allowed(req: Request): Promise<boolean> {
   if (key.startsWith("eyJ")) h.Authorization = "Bearer " + key; // ancienne clé service_role (JWT)
   const a = await fetch(url + "/auth/v1/admin/users?per_page=1", { headers: h });
   return a.ok;
+}
+
+// Zendesk limite le nombre de requêtes par minute : en cas de refus (429), on attend puis on réessaie (3 fois au plus)
+async function zfetch(url: string, init: RequestInit): Promise<Response> {
+  for (let i = 0; ; i++) {
+    const r = await fetch(url, init);
+    if (r.status !== 429 || i >= 3) return r;
+    const wait = Math.min(Number(r.headers.get("Retry-After")) || 2 * (i + 1), 30);
+    await new Promise((res) => setTimeout(res, wait * 1000));
+  }
 }
 
 // Jeton OAuth « client credentials » : valable 30 minutes, gardé en mémoire tant que l'instance vit
@@ -69,7 +87,7 @@ async function zendeskToken(base: string): Promise<string> {
 }
 
 async function zget(base: string, path: string) {
-  const r = await fetch(base + path, { headers: { Authorization: "Bearer " + (await zendeskToken(base)) } });
+  const r = await zfetch(base + path, { headers: { Authorization: "Bearer " + (await zendeskToken(base)) } });
   if (r.status === 401) cached = null; // jeton expiré : le prochain appel en redemande un
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error("Zendesk " + r.status + " sur " + path + " : " + JSON.stringify(j));

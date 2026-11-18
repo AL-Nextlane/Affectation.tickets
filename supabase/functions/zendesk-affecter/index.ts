@@ -31,7 +31,15 @@ async function allowed(req: Request): Promise<boolean> {
     const r = await fetch(url + "/auth/v1/user", {
       headers: { Authorization: "Bearer " + token, apikey: Deno.env.get("SUPABASE_ANON_KEY") || "" },
     });
-    if (r.ok) return true;
+    if (r.ok) {
+      // Compte connecté : il doit aussi être membre de l'application (table members, fonction is_member)
+      const m = await fetch(url + "/rest/v1/rpc/is_member", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + token, apikey: Deno.env.get("SUPABASE_ANON_KEY") || "", "Content-Type": "application/json" },
+        body: "{}",
+      });
+      if (m.ok && (await m.json().catch(() => false)) === true) return true;
+    }
   }
   const key = (req.headers.get("x-cle-admin") || "").trim();
   if (!key) return false;
@@ -39,6 +47,16 @@ async function allowed(req: Request): Promise<boolean> {
   if (key.startsWith("eyJ")) h.Authorization = "Bearer " + key;
   const a = await fetch(url + "/auth/v1/admin/users?per_page=1", { headers: h });
   return a.ok;
+}
+
+// Zendesk limite le nombre de requêtes par minute : en cas de refus (429), on attend puis on réessaie (3 fois au plus)
+async function zfetch(url: string, init: RequestInit): Promise<Response> {
+  for (let i = 0; ; i++) {
+    const r = await fetch(url, init);
+    if (r.status !== 429 || i >= 3) return r;
+    const wait = Math.min(Number(r.headers.get("Retry-After")) || 2 * (i + 1), 30);
+    await new Promise((res) => setTimeout(res, wait * 1000));
+  }
 }
 
 let cached: { token: string; until: number } | null = null;
@@ -63,7 +81,7 @@ async function zendeskToken(base: string): Promise<string> {
 }
 
 async function zcall(base: string, method: string, path: string, body?: unknown) {
-  const r = await fetch(base + path, {
+  const r = await zfetch(base + path, {
     method,
     headers: { Authorization: "Bearer " + (await zendeskToken(base)), "Content-Type": "application/json" },
     body: body ? JSON.stringify(body) : undefined,
