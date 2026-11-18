@@ -1,6 +1,6 @@
 // Fonction Supabase « zendesk-challenge » : LECTURE SEULE, ne modifie rien dans Zendesk.
 // Recherche les tickets portant le tag « ticket_challenge », sans agent affecté, au statut Nouveau ou Ouvert,
-// dans les groupes « FR - Assistance N1 - ICS » ou « FR - Assistance N2 - ICS »,
+// dans les groupes « FR - Assistance N1 - ICS », « FR - Assistance N2 - ICS » ou « CE - Customer Support »,
 // et renvoie pour chacun : ID, Créé le, Catégorie, Sujet, Organisation, Demandeur.
 // Corps : {} (aucun paramètre). Réponse : { tickets: [...], total, avertissements? }
 //
@@ -8,11 +8,13 @@
 // Test depuis le tableau de bord : en-tête « x-cle-admin » = clé secrète du projet.
 
 const TAG = "ticket_challenge";
-// Groupes retenus (identifiants Zendesk, plus sûrs que les noms qui peuvent être renommés)
+// Groupes retenus : identifiants déjà connus (ils restent valables si un groupe est renommé),
+// complétés par les groupes retrouvés par leur nom dans Zendesk (pour ceux dont on n'a pas l'identifiant)
 const GROUPS: Record<string, string> = {
   "360003100119": "FR - Assistance N1 - ICS",
   "360003100139": "FR - Assistance N2 - ICS",
 };
+const GROUP_NAMES = ["FR - Assistance N1 - ICS", "FR - Assistance N2 - ICS", "CE - Customer Support"];
 // La recherche Zendesk (/api/v2/search) exige le droit de lecture général « read » (lecture seule sur tout le compte)
 const SCOPE = "read";
 
@@ -115,6 +117,19 @@ Deno.serve(async (req) => {
   const warn: string[] = [];
 
   try {
+    // 0. Groupes retenus : identifiants connus + groupes retrouvés par leur nom
+    const groups: Record<string, string> = { ...GROUPS };
+    const wanted = GROUP_NAMES.map(norm);
+    let gnext: string | null = "/api/v2/groups.json?page[size]=100";
+    while (gnext) {
+      const j = await zget(base, gnext);
+      for (const g of j.groups || []) if (wanted.includes(norm(g.name))) groups[String(g.id)] = g.name;
+      gnext = j.meta?.has_more && j.links?.next ? j.links.next.replace(base, "") : null;
+    }
+    const foundNames = Object.values(groups).map(norm);
+    const missingGroups = GROUP_NAMES.filter((n) => !foundNames.includes(norm(n)));
+    if (missingGroups.length) warn.push("Groupes introuvables dans Zendesk : " + missingGroups.join(", ") + ".");
+
     // 1. Recherche : tag, sans assigné, statut Nouveau ou Ouvert (status<pending = new + open)
     const query = "type:ticket tags:" + TAG + " assignee:none status<pending";
     const found: any[] = [];
@@ -124,10 +139,10 @@ Deno.serve(async (req) => {
       found.push(...(j.results || []));
       next = j.next_page ? j.next_page.replace(base, "") : null;
     }
-    // Double contrôle (l'index de recherche Zendesk peut avoir quelques minutes de retard) + filtre sur les groupes N1 / N2 ICS
+    // Double contrôle (l'index de recherche Zendesk peut avoir quelques minutes de retard) + filtre sur les groupes retenus
     const tickets = found.filter((t) =>
       t.result_type !== "user" && !t.assignee_id && (t.status === "new" || t.status === "open") && (t.tags || []).includes(TAG) &&
-      GROUPS[String(t.group_id)] !== undefined
+      groups[String(t.group_id)] !== undefined
     );
     const horsGroupe = found.length - tickets.length;
 
@@ -162,9 +177,10 @@ Deno.serve(async (req) => {
         organisation: orgs[String(t.organization_id)] || "",
         demandeur: users[String(t.requester_id)] || "",
         statut: t.status,
-        groupe: GROUPS[String(t.group_id)],
+        groupe: groups[String(t.group_id)],
       })),
-      ecartes: horsGroupe || undefined, // trouvés par la recherche mais hors groupes N1/N2 ICS (ou plus éligibles)
+      ecartes: horsGroupe || undefined, // trouvés par la recherche mais hors groupes retenus (ou plus éligibles)
+      groupes_retenus: groups,
       avertissements: warn.length ? warn : undefined,
       categorie_champ: catField ? catField.title : undefined,
     });
