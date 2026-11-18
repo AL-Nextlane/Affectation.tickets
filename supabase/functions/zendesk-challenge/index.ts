@@ -1,5 +1,6 @@
 // Fonction Supabase « zendesk-challenge » : LECTURE SEULE, ne modifie rien dans Zendesk.
 // Recherche les tickets portant le tag « ticket_challenge », sans agent affecté, au statut Nouveau ou Ouvert,
+// dans les groupes « FR - Assistance N1 - ICS » ou « FR - Assistance N2 - ICS »,
 // et renvoie pour chacun : ID, Créé le, Catégorie, Sujet, Organisation, Demandeur.
 // Corps : {} (aucun paramètre). Réponse : { tickets: [...], total, avertissements? }
 //
@@ -7,6 +8,11 @@
 // Test depuis le tableau de bord : en-tête « x-cle-admin » = clé secrète du projet.
 
 const TAG = "ticket_challenge";
+// Groupes retenus (identifiants Zendesk, plus sûrs que les noms qui peuvent être renommés)
+const GROUPS: Record<string, string> = {
+  "360003100119": "FR - Assistance N1 - ICS",
+  "360003100139": "FR - Assistance N2 - ICS",
+};
 // La recherche Zendesk (/api/v2/search) exige le droit de lecture général « read » (lecture seule sur tout le compte)
 const SCOPE = "read";
 
@@ -118,10 +124,12 @@ Deno.serve(async (req) => {
       found.push(...(j.results || []));
       next = j.next_page ? j.next_page.replace(base, "") : null;
     }
-    // Double contrôle : l'index de recherche Zendesk peut avoir quelques minutes de retard
+    // Double contrôle (l'index de recherche Zendesk peut avoir quelques minutes de retard) + filtre sur les groupes N1 / N2 ICS
     const tickets = found.filter((t) =>
-      t.result_type !== "user" && !t.assignee_id && (t.status === "new" || t.status === "open") && (t.tags || []).includes(TAG)
+      t.result_type !== "user" && !t.assignee_id && (t.status === "new" || t.status === "open") && (t.tags || []).includes(TAG) &&
+      GROUPS[String(t.group_id)] !== undefined
     );
+    const horsGroupe = found.length - tickets.length;
 
     // 2. Catégorie : champ personnalisé « Catégorie » (valeur technique → libellé affiché)
     let catField: any = null;
@@ -154,7 +162,9 @@ Deno.serve(async (req) => {
         organisation: orgs[String(t.organization_id)] || "",
         demandeur: users[String(t.requester_id)] || "",
         statut: t.status,
+        groupe: GROUPS[String(t.group_id)],
       })),
+      ecartes: horsGroupe || undefined, // trouvés par la recherche mais hors groupes N1/N2 ICS (ou plus éligibles)
       avertissements: warn.length ? warn : undefined,
       categorie_champ: catField ? catField.title : undefined,
     });
