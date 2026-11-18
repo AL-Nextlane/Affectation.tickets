@@ -133,19 +133,31 @@ Deno.serve(async (req) => {
     // Catégorie : plusieurs champs « Category » existent ; on garde celui des catégories françaises (Atelier, Magasin…)
     const cats = titled(FIELD_TITLES.categorie);
     const fCat = cats.find((f) => optNames(f).some((n: string) => ["atelier", "magasin", "comptabilite"].includes(n))) || cats[0];
-    // Type d'assistance : son titre varie selon la langue ; on le reconnaît à son option « Agent »
+    // Type d'assistance : identifiant fixé par le secret ZENDESK_CHAMP_ASSISTANCE s'il existe ; sinon son titre,
+    // ou le seul champ dont une option s'appelle « Agent »
+    const forcedId = Number(Deno.env.get("ZENDESK_CHAMP_ASSISTANCE") || 0);
     const withAgent = active.filter((f) => optNames(f).includes("agent"));
-    const fAssist = titled(FIELD_TITLES.assistance)[0] || (withAgent.length === 1 ? withAgent[0] : undefined);
+    const fAssist = (forcedId ? active.find((f) => f.id === forcedId) : undefined) ||
+      titled(FIELD_TITLES.assistance)[0] || (withAgent.length === 1 ? withAgent[0] : undefined);
     const missing = [!fProduit && "Produit", !fCat && "Catégorie", !fAssist && "Type d'assistance"].filter(Boolean);
     if (missing.length) {
+      // Diagnostic : listes déroulantes dont un titre, une option ou une valeur évoque « agent » ou « assistance »
+      const hint = (s: unknown) => /agent|assist|support|type/.test(norm(String(s ?? "")));
       return reply({
         erreur: "Champs Zendesk introuvables : " + missing.join(", ") + ".",
-        champs_avec_option_agent: withAgent.map((f) => ({ id: f.id, titre: f.title, options: (f.custom_field_options || []).map((o: any) => o.name) })),
-        champs_disponibles: active.map((f) => f.title).sort(),
+        champs_candidats: active
+          .filter((f) => (f.custom_field_options || []).length &&
+            (hint(f.title) || hint(f.title_in_portal) || (f.custom_field_options || []).some((o: any) => hint(o.name) || hint(o.value))))
+          .map((f) => ({
+            id: f.id, titre: f.title, titre_portail: f.title_in_portal,
+            options: (f.custom_field_options || []).map((o: any) => o.name + " [" + o.value + "]"),
+          })),
       }, 500);
     }
     // Valeur « Agent » du type d'assistance (valeur technique de l'option)
-    const agentValues = (fAssist.custom_field_options || [])
+    // Option « Agent » : nom exact, ou valeur technique imposée par le secret ZENDESK_VALEUR_AGENT
+    const forcedValue = (Deno.env.get("ZENDESK_VALEUR_AGENT") || "").trim();
+    const agentValues = forcedValue ? [forcedValue] : (fAssist.custom_field_options || [])
       .filter((o: any) => norm(String(o.name).split("::").pop()!) === "agent").map((o: any) => o.value);
     if (!agentValues.length) {
       return reply({
