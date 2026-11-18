@@ -2000,7 +2000,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       var pop = rows.length
         ? '<table>' + rows.map(function(r){ return '<tr><td>' + esc(r[0]) + '</td><td>' + nf.format(r[1]) + '</td></tr>'; }).join('') + '</table>'
         : '<p>Aucun ticket sur la période.</p>';
-      return '<div class="banner-item" tabindex="0"><div class="banner-num">' + nf.format(it.total) + ' <span>' + (it.total > 1 ? 'tickets' : 'ticket') + '</span></div>' +
+      return '<div class="banner-item" tabindex="0"><div class="banner-num">' + nf.format(it.total) + ' <span>' + (it.total > 1 ? 'tickets pris ou affectés' : 'ticket pris ou affecté') + '</span></div>' +
         '<div class="banner-label">sur ' + it.span + '</div><div class="banner-sub">' + it.sub + '</div>' + sparkHTML(it) +
         '<div class="banner-pop" role="tooltip"><p class="modal-kicker">Par consultant</p>' + pop + '</div></div>';
     }).join('');
