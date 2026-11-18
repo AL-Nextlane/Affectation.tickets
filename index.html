@@ -1059,7 +1059,10 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     <section id="arTaken" hidden>
       <div class="section-head">
         <h2>Tickets pris <span class="tag" id="arTakenCount">0</span></h2>
-        <div class="row no-print"><button class="btn primary" id="takenToggle" type="button" aria-expanded="false" aria-controls="takenPanel">Importer des tickets pris</button></div>
+        <div class="row no-print">
+          <button class="btn" id="takenZendesk" type="button" style="display:none" title="Tickets challenge affectés depuis 30 jours (Produit et Catégorie renseignés, type d'assistance Agent)">Récupérer depuis Zendesk <span class="tag">bêta</span></button>
+          <button class="btn primary" id="takenToggle" type="button" aria-expanded="false" aria-controls="takenPanel">Importer des tickets pris</button>
+        </div>
       </div>
       <p class="help" style="margin:-6px 0 10px">Tickets pris directement par les consultants. Ils comptent dans les statistiques.</p>
       <p class="msg no-print" id="takenMsg" style="margin:0 0 10px"></p>
@@ -3897,6 +3900,47 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     if (open){ renderTaken(); if (takenAvailable) $('takenPaste').focus(); }
   }
   $('takenToggle').addEventListener('click', function(){ setTakenOpen($('takenPanel').hidden); });
+  // Bêta : la fonction Supabase « zendesk-pris » remplace l'export Excel de la vue. Ses lignes passent par le même
+  // aperçu que le collage (consultants reconnus, tickets déjà affectés par l'équipe écartés, mises à jour, annulation).
+  $('takenZendesk').addEventListener('click', async function(){
+    var btn = this, label = btn.innerHTML, msg = $('takenMsg');
+    if (!takenAvailable){ setTakenOpen(true); return; }
+    btn.disabled = true; btn.textContent = 'Recherche dans Zendesk…';
+    try {
+      var res = await db.functions.invoke('zendesk-pris', { body: {} });
+      var data = res.data || {};
+      if (res.error && !data.erreur){
+        try { data = await res.error.context.json(); } catch (e){ data = { erreur: res.error.message }; }
+      }
+      if (data.erreur) throw new Error(data.erreur + (data.champs_disponibles ? ' Champs : ' + data.champs_disponibles.join(', ') : '') +
+        (data.options_disponibles ? ' Options : ' + data.options_disponibles.join(', ') : ''));
+      var list = data.tickets || [];
+      if (!list.length){ msg.innerHTML = 'Zendesk : aucun ticket pris sur les 30 derniers jours.'; return; }
+      var clean = function(v){
+        v = String(v == null ? '' : v).replace(/\s+/g, ' ').trim();
+        return /"/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+      };
+      var keys = ['id', 'affecte', 'categorie', 'sujet', 'organisation', 'demandeur', 'assigne'];
+      var lines = [['ID', 'Affecté', 'Catégorie', 'Sujet', 'Organisation', 'Demandeur', 'Assigné'].join('\t')].concat(list.map(function(t){
+        return keys.map(function(k){
+          var v = t[k];
+          if (k === 'categorie' && /^vente/.test(norm(v))) v = 'Vente VN-VO';
+          return clean(v);
+        }).join('\t');
+      }));
+      tk = null;
+      setTakenOpen(true);
+      $('takenPaste').value = lines.join('\n');
+      buildTaken();
+      $('takenPreview').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      msg.innerHTML = '<strong>Zendesk : ' + plural(list.length, 'ticket pris trouvé', 'tickets pris trouvés') + '</strong> (' + esc(data.periode || '30 jours') + '). Vérifiez l\'aperçu puis cliquez sur « Importer ».' +
+        ((data.avertissements || []).length ? '<br><span class="err-text">' + data.avertissements.map(esc).join('<br>') + '</span>' : '');
+    } catch (e){
+      msg.innerHTML = '<span class="err-text">Récupération Zendesk impossible : ' + esc(e.message || String(e)) + '</span>';
+    } finally {
+      btn.disabled = false; btn.innerHTML = label;
+    }
+  });
   var takenTimer;
   $('takenPaste').addEventListener('input', function(){ clearTimeout(takenTimer); takenTimer = setTimeout(buildTaken, 250); });
   $('takenMap').addEventListener('change', function(e){
@@ -3982,6 +4026,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
   function renderRole(){
     document.body.classList.toggle('is-admin', isAdmin());
     $('zendeskBtn').style.display = BETA ? '' : 'none'; // bêta : visible seulement avec ?beta=1 dans l'adresse (et pour les administrateurs)
+    $('takenZendesk').style.display = BETA ? '' : 'none';
     if (me){ $('meEmail').textContent = me.email; $('meEmail').title = me.email; $('meRole').textContent = isAdmin() ? 'Administrateur' : 'Utilisateur'; }
   }
 
