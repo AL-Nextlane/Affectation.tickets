@@ -3,6 +3,7 @@
 // - { tickets: ["123", ...] }           → état de chaque ticket dans Zendesk (statut, assigné, groupe)
 // - { agents: ["Prénom Nom", ...] }     → retrouve chaque consultant parmi les agents Zendesk (par nom), avec ses groupes
 // - + { verifier: [{ ticket, agent }] } → dit pour chaque paire si l'affectation sera acceptée par Zendesk
+// - { groupe: "360003100139" }          → liste des membres du groupe (nom exact, e-mail, actif)
 //
 // Secrets à créer dans Supabase (Edge Functions > Secrets) :
 //   ZENDESK_SUBDOMAIN      (la partie xxx de xxx.zendesk.com)
@@ -147,10 +148,32 @@ Deno.serve(async (req) => {
       out.agents = list;
     }
 
+    // Membres d'un groupe : { "groupe": "360003100139" } → agents du groupe (nom exact dans Zendesk, e-mail)
+    if (body.groupe) {
+      const gid = String(body.groupe).trim();
+      if (!/^\d+$/.test(gid)) throw new Error("Identifiant de groupe invalide : " + gid);
+      const ids: number[] = [];
+      let next: string | null = "/api/v2/groups/" + gid + "/memberships.json?page[size]=100";
+      while (next) {
+        const j = await zget(base, next);
+        for (const m of j.group_memberships || []) ids.push(m.user_id);
+        next = j.meta?.has_more && j.links?.next ? j.links.next.replace(base, "") : null;
+      }
+      const members: any[] = [];
+      for (let i = 0; i < ids.length; i += 100) {
+        const j = await zget(base, "/api/v2/users/show_many.json?ids=" + ids.slice(i, i + 100).join(","));
+        members.push(...(j.users || []));
+      }
+      out.membres = members
+        .map((u) => ({ nom: u.name, email: u.email, zendesk_id: u.id, actif: u.active !== false && !u.suspended }))
+        .sort((a, b) => a.nom.localeCompare(b.nom, "fr"));
+    }
+
     // Noms des groupes cités (tickets et agents), pour un affichage lisible
     const gids = new Set<number>();
     for (const t of (out.tickets as any[]) || []) if (t.groupe_id) gids.add(t.groupe_id);
     for (const a of (out.agents as any[]) || []) for (const g of a.groupes || []) gids.add(g);
+    if (body.groupe && /^\d+$/.test(String(body.groupe).trim())) gids.add(Number(String(body.groupe).trim()));
     if (gids.size) {
       try {
         const names: Record<string, string> = {};
