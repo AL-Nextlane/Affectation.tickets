@@ -2,6 +2,8 @@
 // Liste les organisations Zendesk et leur code de groupe client, porté par un tag « grp_c… » (ex. grp_c100517).
 // Sert à rassembler automatiquement les organisations d'un même groupe dans l'onglet Statistiques client.
 // Corps :
+//   { "noms": ["…", …] }           → groupe de ces organisations (60 au plus) et nom proposé de chaque groupe
+//                                    (utilisé par le programme ; recherche ciblée, sans relire toutes les organisations)
 //   {}                             → résumé (compteurs, plus gros groupes, exemples)
 //   { "groupe": "grp_c100517" }    → organisations de ce groupe
 //   { "recherche": "kroely" }      → organisations dont le nom contient ce texte (50 au plus)
@@ -72,6 +74,15 @@ async function zget(base: string, path: string) {
   return j;
 }
 
+// Nom proposé pour un groupe : l'organisation qui porte son numéro (grp_c101043 → « … (C101043) »),
+// sinon celle qui contient « HOLDING », sinon la première ; sans « - HOLDING » ni le numéro entre parenthèses
+function groupName(code: string, membres: string[]): string {
+  const num = code.replace(/^grp_c/i, "");
+  const pick = membres.find((m) => new RegExp("\\(C?" + num + "\\)", "i").test(m)) ||
+    membres.find((m) => /holding/i.test(m)) || membres[0] || code;
+  return pick.replace(/\s*\((C?\d+)\)\s*$/i, "").replace(/\s*-\s*holding\b/i, "").replace(/\s+/g, " ").trim() || code;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return reply({ erreur: "Méthode non autorisée" }, 405);
@@ -85,6 +96,32 @@ Deno.serve(async (req) => {
   const body = await req.json().catch(() => ({}));
 
   try {
+    // Recherche ciblée : { "noms": ["MAURIN - HOLDING (C101043)", …] } (60 au plus)
+    // → { organisations: [{ nom, trouve, groupe }], groupes: { grp_c…: { nom_propose, membres, total } } }
+    if (Array.isArray(body.noms)) {
+      const noms: string[] = [...new Set(body.noms.map((n: unknown) => String(n || "").trim()).filter(Boolean))].slice(0, 60) as string[];
+      const found: { nom: string; trouve: boolean; groupe: string | null }[] = [];
+      for (let i = 0; i < noms.length; i += 5) { // 5 recherches à la fois
+        await Promise.all(noms.slice(i, i + 5).map(async (nom) => {
+          const j = await zget(base, "/api/v2/organizations/search.json?name=" + encodeURIComponent(nom));
+          const o = (j.organizations || [])[0];
+          const grp = o ? (o.tags || []).find((t: string) => GRP.test(t)) || null : null;
+          found.push({ nom, trouve: !!o, groupe: grp });
+        }));
+      }
+      // Pour chaque groupe trouvé : ses organisations, et un nom proposé
+      const groupes: Record<string, { nom_propose: string; membres: string[]; total: number }> = {};
+      const codes = [...new Set(found.map((f) => f.groupe).filter(Boolean))] as string[];
+      for (let i = 0; i < codes.length; i += 5) {
+        await Promise.all(codes.slice(i, i + 5).map(async (code) => {
+          const j = await zget(base, "/api/v2/search.json?per_page=100&query=" + encodeURIComponent("type:organization tags:" + code));
+          const membres = (j.results || []).map((o: any) => String(o.name)).sort((a: string, b: string) => a.localeCompare(b, "fr"));
+          groupes[code] = { nom_propose: groupName(code, membres), membres: membres.slice(0, 15), total: j.count || membres.length };
+        }));
+      }
+      return reply({ organisations: found, groupes });
+    }
+
     // Toutes les organisations, par pages de 100 (pagination par curseur)
     const orgs: any[] = [];
     let next: string | null = "/api/v2/organizations.json?page[size]=100";
