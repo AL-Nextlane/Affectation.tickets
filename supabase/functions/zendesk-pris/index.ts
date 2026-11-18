@@ -122,6 +122,25 @@ Deno.serve(async (req) => {
   const warn: string[] = [];
 
   try {
+    // Diagnostic : { "vue": "123456" } → conditions de la vue Zendesk, avec le nom des champs personnalisés utilisés
+    if (body.vue) {
+      const vid = String(body.vue).trim();
+      if (!/^\d+$/.test(vid)) return reply({ erreur: "Identifiant de vue invalide : " + vid }, 400);
+      const v = (await zget(base, "/api/v2/views/" + vid + ".json")).view;
+      const fields: any[] = (await zget(base, "/api/v2/ticket_fields.json?page[size]=100")).ticket_fields || [];
+      const describe = (c: any) => {
+        const m = /^custom_fields_(\d+)$/.exec(String(c.field));
+        const f = m ? fields.find((x) => String(x.id) === m[1]) : null;
+        const opt = f ? (f.custom_field_options || []).find((o: any) => o.value === c.value) : null;
+        return { ...c, champ_nom: f ? f.title : undefined, champ_type: f ? f.type : undefined, valeur_nom: opt ? opt.name : undefined };
+      };
+      return reply({
+        vue: v.title,
+        toutes: (v.conditions?.all || []).map(describe),
+        au_moins_une: (v.conditions?.any || []).map(describe),
+      });
+    }
+
     // 1. Champs personnalisés : Produit, Catégorie, Type d'assistance
     const fj = await zget(base, "/api/v2/ticket_fields.json?page[size]=100");
     const all: any[] = fj.ticket_fields || [];
