@@ -50,6 +50,8 @@ button,input,select,textarea{font:inherit;color:inherit}
 header{padding:48px 0 28px}
 .eyebrow{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--accent);margin:0 0 8px}
 h1{font-size:clamp(26px,4vw,34px);font-weight:600;letter-spacing:-.01em;margin:0 0 10px;line-height:1.2}
+.beta-badge{display:inline-block;vertical-align:middle;margin-left:12px;padding:6px 16px;border-radius:10px;background:#d64545;color:#fff;font-size:20px;font-weight:800;letter-spacing:.08em;box-shadow:0 0 0 3px color-mix(in srgb,#d64545 30%,transparent)}
+.beta-badge[hidden]{display:none}
 .version-tag{display:inline-block;vertical-align:middle;margin-left:8px;padding:3px 10px;border-radius:999px;background:var(--surface-2);color:var(--muted);font-size:12px;font-weight:600;letter-spacing:.02em}
 .header-rule{
   border:0;height:2px;margin:24px 0 0;border-radius:2px;
@@ -936,7 +938,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
 <div class="wrap">
   <header>
     <p class="eyebrow">Suivi des tickets</p>
-    <h1>Affectation des tickets <span class="version-tag" title="Version du site">v1.3</span></h1>
+    <h1>Affectation des tickets <span class="version-tag" title="Version du site">v1.3</span><span class="beta-badge" id="betaBadge" hidden title="Version de test ouverte depuis ce poste (localhost) : elle travaille sur la vraie base">BETA · version locale</span></h1>
     <hr class="header-rule">
   </header>
 
@@ -1610,6 +1612,11 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
   // La fonction Supabase « zendesk-challenge » renvoie les tickets ; on les range dans l'ordre du modèle de colonnes
   // et on les ajoute directement à la session en cours.
   var BETA = /[?&]beta=1\b/.test(location.search);
+  // Badge « BETA » : page ouverte depuis ce poste (serveur local ou fichier), jamais sur le site en ligne
+  if (/^(localhost|127\.0\.0\.1|\[::1\]|)$/.test(location.hostname)){
+    $('betaBadge').hidden = false;
+    document.title = 'BETA · ' + document.title;
+  }
   function zendeskField(col){
     var c = norm(col);
     if (/^(id|n°|no|num|ticket)/.test(c)) return 'id';
