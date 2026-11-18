@@ -6,7 +6,7 @@
 //   - Type d'assistance est « Agent »
 //   - Temps écoulé depuis l'affectation < 720 h (30 jours), d'après la date de dernière affectation (assigned_at)
 // Renvoie pour chaque ticket : ID, Affecté (date d'affectation), Catégorie, Sujet, Organisation, Demandeur, Assigné.
-// Corps : {} ou { "jours": 30 }.
+// Corps : {} ou { "jours": 30 } ou { "depuis": "2026-11-17T08:00:00Z" } (affectés après cette date, 30 jours au plus).
 //
 // Mêmes secrets que les autres fonctions Zendesk. Test : en-tête « x-cle-admin » = clé secrète du projet.
 
@@ -115,7 +115,10 @@ Deno.serve(async (req) => {
   const base = "https://" + sub.replace(/\.zendesk\.com.*$/i, "") + ".zendesk.com";
   const body = await req.json().catch(() => ({}));
   const days = Math.min(Math.max(Number(body.jours) || 30, 1), 90);
-  const since = Date.now() - days * 24 * 3600 * 1000; // 720 h pour 30 jours
+  let since = Date.now() - days * 24 * 3600 * 1000; // 720 h pour 30 jours
+  // « depuis » (date ISO, ex. dernier import) : ne garde que les tickets affectés après cette date, dans la limite de « jours »
+  const depuis = body.depuis ? new Date(body.depuis).getTime() : NaN;
+  if (!isNaN(depuis) && depuis > since) since = depuis;
   const warn: string[] = [];
 
   try {
@@ -187,7 +190,7 @@ Deno.serve(async (req) => {
 
     return reply({
       total: tickets.length,
-      periode: "affectés depuis " + days + " jours (" + days * 24 + " h)",
+      periode: "affectés depuis le " + new Date(since).toLocaleString("fr-FR", { timeZone: "Europe/Paris" }),
       tickets: tickets.map((t) => ({
         id: String(t.id),
         affecte: frDay(assignedAt[String(t.id)]),

@@ -1059,10 +1059,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     <section id="arTaken" hidden>
       <div class="section-head">
         <h2>Tickets pris <span class="tag" id="arTakenCount">0</span></h2>
-        <div class="row no-print">
-          <button class="btn" id="takenZendesk" type="button" style="display:none" title="Tickets challenge affectés depuis 30 jours (Produit et Catégorie renseignés, type d'assistance Agent)">Récupérer depuis Zendesk <span class="tag">bêta</span></button>
-          <button class="btn primary" id="takenToggle" type="button" aria-expanded="false" aria-controls="takenPanel">Importer des tickets pris</button>
-        </div>
+        <div class="row no-print"><button class="btn primary" id="takenToggle" type="button" aria-expanded="false" aria-controls="takenPanel">Importer des tickets pris</button></div>
       </div>
       <p class="help" style="margin:-6px 0 10px">Tickets pris directement par les consultants. Ils comptent dans les statistiques.</p>
       <p class="msg no-print" id="takenMsg" style="margin:0 0 10px"></p>
@@ -3901,47 +3898,66 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     if (open){ renderTaken(); if (takenAvailable) $('takenPaste').focus(); }
   }
   $('takenToggle').addEventListener('click', function(){ setTakenOpen($('takenPanel').hidden); });
-  // Bêta : la fonction Supabase « zendesk-pris » remplace l'export Excel de la vue. Ses lignes passent par le même
-  // aperçu que le collage (consultants reconnus, tickets déjà affectés par l'équipe écartés, mises à jour, annulation).
-  $('takenZendesk').addEventListener('click', async function(){
-    var btn = this, label = btn.innerHTML, msg = $('takenMsg');
-    if (!takenAvailable){ setTakenOpen(true); return; }
-    btn.disabled = true; btn.textContent = 'Recherche dans Zendesk…';
+  /* ---------- Bêta : tickets pris récupérés automatiquement depuis Zendesk ---------- */
+  // À l'ouverture de la page, la fonction Supabase « zendesk-pris » renvoie les tickets pris depuis le dernier import
+  // (conditions de la vue Zendesk). Ils sont enregistrés directement, avec les règles de l'import Excel :
+  // consultant reconnu, ticket déjà affecté par l'équipe non compté deux fois, ticket déjà importé mis à jour.
+  var TAKEN_SYNC_KEY = 'zendeskTakenSync', TAKEN_SYNC_EVERY = 10 * 60 * 1000; // pas plus d'une fois toutes les 10 minutes par poste
+  async function syncTakenFromZendesk(){
+    if (!takenAvailable || !me) return;
+    try { var last = +localStorage.getItem(TAKEN_SYNC_KEY) || 0; if (Date.now() - last < TAKEN_SYNC_EVERY) return; } catch (e){}
+    // Depuis le dernier import (un jour de marge : un ticket revu une deuxième fois ne change rien), 30 jours au plus
+    var lastImport = state.taken.reduce(function(m, t){ return t.importedAt && t.importedAt > m ? t.importedAt : m; }, '');
+    var depuis = lastImport ? new Date(new Date(lastImport).getTime() - 864e5).toISOString() : '';
+    var res, data;
     try {
-      var res = await db.functions.invoke('zendesk-pris', { body: {} });
-      var data = res.data || {};
+      res = await db.functions.invoke('zendesk-pris', { body: depuis ? { depuis: depuis } : {} });
+      data = res.data || {};
       if (res.error && !data.erreur){
         try { data = await res.error.context.json(); } catch (e){ data = { erreur: res.error.message }; }
       }
-      if (data.erreur) throw new Error(data.erreur + (data.champs_disponibles ? ' Champs : ' + data.champs_disponibles.join(', ') : '') +
-        (data.options_disponibles ? ' Options : ' + data.options_disponibles.join(', ') : ''));
-      var list = data.tickets || [];
-      if (!list.length){ msg.innerHTML = 'Zendesk : aucun ticket pris sur les 30 derniers jours.'; return; }
-      var clean = function(v){
-        v = String(v == null ? '' : v).replace(/\s+/g, ' ').trim();
-        return /"/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
-      };
-      var keys = ['id', 'affecte', 'categorie', 'sujet', 'organisation', 'demandeur', 'assigne'];
-      var lines = [['ID', 'Affecté', 'Catégorie', 'Sujet', 'Organisation', 'Demandeur', 'Assigné'].join('\t')].concat(list.map(function(t){
-        return keys.map(function(k){
-          var v = t[k];
-          if (k === 'categorie' && /^vente/.test(norm(v))) v = 'Vente VN-VO';
-          return clean(v);
-        }).join('\t');
-      }));
-      tk = null;
-      setTakenOpen(true);
-      $('takenPaste').value = lines.join('\n');
-      buildTaken();
-      $('takenPreview').scrollIntoView({ behavior: 'smooth', block: 'start' });
-      msg.innerHTML = '<strong>Zendesk : ' + plural(list.length, 'ticket pris trouvé', 'tickets pris trouvés') + '</strong> (' + esc(data.periode || '30 jours') + '). Vérifiez l\'aperçu puis cliquez sur « Importer ».' +
-        ((data.avertissements || []).length ? '<br><span class="err-text">' + data.avertissements.map(esc).join('<br>') + '</span>' : '');
-    } catch (e){
-      msg.innerHTML = '<span class="err-text">Récupération Zendesk impossible : ' + esc(e.message || String(e)) + '</span>';
-    } finally {
-      btn.disabled = false; btn.innerHTML = label;
+    } catch (e){ data = { erreur: e.message || String(e) }; }
+    if (data.erreur){
+      console.warn('Tickets pris Zendesk :', data);
+      if (isAdmin()) $('takenMsg').innerHTML = '<span class="err-text">Récupération automatique des tickets pris depuis Zendesk impossible : ' + esc(data.erreur) + '</span>';
+      return;
     }
-  });
+    try { localStorage.setItem(TAKEN_SYNC_KEY, String(Date.now())); } catch (e){}
+
+    var known = {}, team = {}, unknown = {}, added = 0, updated = 0, at = new Date().toISOString();
+    state.taken.forEach(function(t){ known[t.id] = t; });
+    allTickets().forEach(function(t){ var k = (t.cells[0] || '').trim(); if (k && t.assignee) team[k] = true; });
+    (data.tickets || []).forEach(function(z){
+      var id = String(z.id || '').trim(); if (!id || team[id]) return;
+      var person = matchPerson(z.assigne || ''), d = parseDate(z.affecte);
+      if (!person){ if (z.assigne) unknown[z.assigne] = true; return; }
+      if (!d) return;
+      var row = { person: person, takenOn: isoDay(d), label: z.sujet || '', pole: /^vente/.test(norm(z.categorie)) ? 'Vente VN-VO' : (z.categorie || ''),
+        org: z.organisation || '', requester: z.demandeur || '' };
+      var ex = known[id];
+      if (!ex){
+        row.id = id; row.importedAt = at; state.taken.push(row); known[id] = row; added++;
+        return;
+      }
+      var changed = false; // une valeur vide ne remplace pas la valeur enregistrée
+      Object.keys(row).forEach(function(k){ if (row[k] && row[k] !== (ex[k] || '')){ ex[k] = row[k]; changed = true; } });
+      if (changed) updated++;
+    });
+    var unk = Object.keys(unknown);
+    if (!added && !updated){
+      if (unk.length && isAdmin()) $('takenMsg').innerHTML = '<span class="err-text">Zendesk : consultants non reconnus, tickets non comptés : ' + unk.map(esc).join(', ') + '.</span>';
+      return;
+    }
+    takenUndo = save();
+    audit('tickets_pris_importes', { tickets: added + updated, nouveaux: added, mis_a_jour: updated, source: 'zendesk' });
+    renderTaken(); renderStats(); renderArchive(); renderBanner();
+    var parts = [];
+    if (added) parts.push(plural(added, 'nouveau ticket pris', 'nouveaux tickets pris'));
+    if (updated) parts.push(plural(updated, 'ticket pris mis à jour', 'tickets pris mis à jour'));
+    $('takenMsg').innerHTML = '<strong>Récupéré automatiquement depuis Zendesk :</strong> ' + parts.join(', ') + '. ' +
+      '<button type="button" class="link-btn" id="takenUndoBtn">Annuler cet import</button>' +
+      (unk.length ? '<br><span class="err-text">Consultants non reconnus, tickets non comptés : ' + unk.map(esc).join(', ') + '.</span>' : '');
+  }
   var takenTimer;
   $('takenPaste').addEventListener('input', function(){ clearTimeout(takenTimer); takenTimer = setTimeout(buildTaken, 250); });
   $('takenMap').addEventListener('change', function(e){
@@ -4027,7 +4043,6 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
   function renderRole(){
     document.body.classList.toggle('is-admin', isAdmin());
     $('zendeskBtn').style.display = BETA ? '' : 'none'; // bêta : visible seulement avec ?beta=1 dans l'adresse (et pour les administrateurs)
-    $('takenZendesk').style.display = BETA ? '' : 'none';
     if (me){ $('meEmail').textContent = me.email; $('meEmail').title = me.email; $('meRole').textContent = isAdmin() ? 'Administrateur' : 'Utilisateur'; }
   }
 
@@ -4325,7 +4340,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       case 'session_supprimee': return 'session du ' + fmtDateTime(d.at) + ' · ' + plural(d.tickets || 0, 'ticket', 'tickets');
       case 'modele_modifie': return (d.colonnes || []).join(' · ');
       case 'tickets_vides': return plural(d.tickets || 0, 'ticket', 'tickets');
-      case 'tickets_pris_importes': return plural(d.tickets || 0, 'ticket', 'tickets');
+      case 'tickets_pris_importes': return plural(d.tickets || 0, 'ticket', 'tickets') + (d.source === 'zendesk' ? ' · depuis Zendesk' : '');
       case 'import_pris_supprime': return 'import du ' + fmtDateTime(d.at) + ' · ' + plural(d.tickets || 0, 'ticket', 'tickets');
       case 'sauvegarde_restauree': case 'donnees_locales_envoyees':
         return plural(d.tickets || 0, 'ticket en cours', 'tickets en cours') + ', ' + plural(d.archives || 0, 'archivé', 'archivés');
@@ -4470,6 +4485,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       await loadAll();
       renderAll(); show('app');
       subscribe();
+      if (BETA) syncTakenFromZendesk(); // bêta : tickets pris récupérés en arrière-plan, sans bloquer l'affichage
     } catch(err){
       console.error(err);
       showLogin('Impossible de charger les données : ' + (err.message || err), true);
