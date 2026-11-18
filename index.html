@@ -960,6 +960,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
         <h2>Session en cours <span class="tag" id="ticketCount">0</span></h2>
         <div class="row no-print" style="align-items:flex-end">
           <button class="btn" id="toggleImport" type="button" aria-expanded="false" aria-controls="importPanel">Importer depuis Excel</button>
+          <button class="btn admin-only" id="zendeskBtn" type="button" style="display:none" title="Tickets Zendesk tag ticket_challenge, sans agent, nouveaux ou ouverts, groupes N1 / N2 ICS">Récupérer depuis Zendesk <span class="tag">bêta</span></button>
           <button class="btn" id="togglePeople" type="button" aria-expanded="false" aria-controls="peoplePanel">Personnes à affecter</button>
           <button class="btn danger admin-only" id="clearBtn" type="button">Vider les tickets</button>
           <span class="validate-stack">
@@ -1604,6 +1605,61 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     btn.disabled = a.errors.length > 0 || n === 0;
     btn.textContent = n ? 'Importer ' + plural(n, 'ticket', 'tickets') : 'Importer';
   }
+
+  /* ---------- Bêta : récupération des tickets challenge depuis Zendesk ---------- */
+  // La fonction Supabase « zendesk-challenge » renvoie les tickets ; on les range dans l'ordre du modèle de colonnes
+  // puis on passe par l'aperçu de l'import Excel : mêmes contrôles (déjà en session, déjà archivé), rien n'est ajouté sans « Importer ».
+  var BETA = /[?&]beta=1\b/.test(location.search);
+  function zendeskField(col){
+    var c = norm(col);
+    if (/^(id|n°|no|num|ticket)/.test(c)) return 'id';
+    if (/^(cree|date)/.test(c)) return 'cree_le';
+    if (/^(pole|categ)/.test(c)) return 'categorie';
+    if (/^(sujet|objet|titre)/.test(c)) return 'sujet';
+    if (/^(organi|client|societe)/.test(c)) return 'organisation';
+    if (/^demandeur/.test(c)) return 'demandeur';
+    return null;
+  }
+  $('zendeskBtn').addEventListener('click', async function(){
+    if (!state.columns.length){ notice('Aucun modèle de colonnes', 'Faites d\'abord un import depuis Excel : il crée le modèle de colonnes.'); return; }
+    var btn = this, label = btn.innerHTML, msg = $('tableMsg');
+    btn.disabled = true; btn.textContent = 'Recherche dans Zendesk…';
+    try {
+      var res = await db.functions.invoke('zendesk-challenge', { body: {} });
+      var data = res.data || {};
+      if (res.error && !data.erreur){ // le corps de la réponse d'erreur porte le message de Zendesk
+        try { data = await res.error.context.json(); } catch (e){ data = { erreur: res.error.message }; }
+      }
+      if (data.erreur) throw new Error(data.erreur);
+      var list = data.tickets || [];
+      if (!list.length){ msg.innerHTML = 'Aucun ticket challenge à récupérer dans Zendesk.'; return; }
+      var fields = state.columns.map(zendeskField);
+      if (fields[0] !== 'id') fields[0] = 'id'; // la 1re colonne est toujours l'identifiant
+      var clean = function(v){ // même échappement qu'un copier depuis Excel : guillemets doublés
+        v = String(v == null ? '' : v).replace(/[\t\r\n]+/g, ' ').trim();
+        return /"/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+      };
+      var lines = [state.columns.map(clean).join('\t')].concat(list.map(function(t){
+        return fields.map(function(f){
+          var v = f ? t[f] : '';
+          if (f === 'categorie' && /^vente/.test(norm(v))) v = 'Vente VN-VO'; // libellé des pôles du programme
+          return clean(v);
+        }).join('\t');
+      }));
+      setImportOpen(true);
+      $('pasteArea').value = lines.join('\n');
+      buildPreview();
+      $('previewCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      var unmapped = state.columns.filter(function(c, i){ return !fields[i]; });
+      msg.innerHTML = '<strong>' + plural(list.length, 'ticket trouvé', 'tickets trouvés') + ' dans Zendesk.</strong> Vérifiez l\'aperçu puis cliquez sur « Importer ».' +
+        (unmapped.length ? ' Colonnes laissées vides : ' + unmapped.map(function(c){ return '« ' + esc(c) + ' »'; }).join(', ') + '.' : '') +
+        ((data.avertissements || []).length ? '<br><span class="err-text">' + data.avertissements.map(esc).join('<br>') + '</span>' : '');
+    } catch (e){
+      msg.innerHTML = '<span class="err-text">Récupération Zendesk impossible : ' + esc(e.message || String(e)) + '</span>';
+    } finally {
+      btn.disabled = false; btn.innerHTML = label;
+    }
+  });
 
   function doImport(){
     if (!pv) return;
@@ -3898,6 +3954,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
   /* ---------- Rôle de l'utilisateur ---------- */
   function renderRole(){
     document.body.classList.toggle('is-admin', isAdmin());
+    $('zendeskBtn').style.display = BETA ? '' : 'none'; // bêta : visible seulement avec ?beta=1 dans l'adresse (et pour les administrateurs)
     if (me){ $('meEmail').textContent = me.email; $('meEmail').title = me.email; $('meRole').textContent = isAdmin() ? 'Administrateur' : 'Utilisateur'; }
   }
 
