@@ -1608,7 +1608,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
 
   /* ---------- Bêta : récupération des tickets challenge depuis Zendesk ---------- */
   // La fonction Supabase « zendesk-challenge » renvoie les tickets ; on les range dans l'ordre du modèle de colonnes
-  // puis on passe par l'aperçu de l'import Excel : mêmes contrôles (déjà en session, déjà archivé), rien n'est ajouté sans « Importer ».
+  // et on les ajoute directement à la session en cours.
   var BETA = /[?&]beta=1\b/.test(location.search);
   function zendeskField(col){
     var c = norm(col);
@@ -1634,25 +1634,30 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       var list = data.tickets || [];
       if (!list.length){ msg.innerHTML = 'Aucun ticket challenge à récupérer dans Zendesk.'; return; }
       var fields = state.columns.map(zendeskField);
-      if (fields[0] !== 'id') fields[0] = 'id'; // la 1re colonne est toujours l'identifiant
-      var clean = function(v){ // même échappement qu'un copier depuis Excel : guillemets doublés
-        v = String(v == null ? '' : v).replace(/[\t\r\n]+/g, ' ').trim();
-        return /"/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
-      };
-      var lines = [state.columns.map(clean).join('\t')].concat(list.map(function(t){
-        return fields.map(function(f){
-          var v = f ? t[f] : '';
+      fields[0] = 'id'; // la 1re colonne est toujours l'identifiant
+      var clean = function(v){ return String(v == null ? '' : v).replace(/\s+/g, ' ').trim(); };
+      // Ajout direct (pas d'aperçu : données Zendesk fiables). Un ticket déjà en session est laissé tel quel
+      // (les superviseurs ont pu le modifier), un ticket déjà archivé n'est pas réimporté.
+      var inSession = ticketsByKey(), archived = archivedByKey(), added = [], kept = 0, arch = 0;
+      list.forEach(function(t){
+        var key = clean(t.id);
+        if (!key) return;
+        if (inSession[key]){ kept++; return; }
+        if (archived[key]){ arch++; return; }
+        var cells = fields.map(function(f){
+          var v = clean(f ? t[f] : '');
           if (f === 'categorie' && /^vente/.test(norm(v))) v = 'Vente VN-VO'; // libellé des pôles du programme
-          return clean(v);
-        }).join('\t');
-      }));
-      setImportOpen(true);
-      $('pasteArea').value = lines.join('\n');
-      buildPreview();
-      $('previewCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+          return v;
+        });
+        var nt = { id: uid(), cells: cells, assignee: '', assignedAt: '' };
+        state.tickets.push(nt); inSession[key] = nt; added.push(key);
+      });
+      if (added.length){ save(); clearUndo(); audit('import', { ajoutes: added.length, mis_a_jour: 0, source: 'zendesk' }); renderAll(); }
       var unmapped = state.columns.filter(function(c, i){ return !fields[i]; });
-      msg.innerHTML = '<strong>' + plural(list.length, 'ticket trouvé', 'tickets trouvés') + ' dans Zendesk.</strong> Vérifiez l\'aperçu puis cliquez sur « Importer ».' +
-        (unmapped.length ? ' Colonnes laissées vides : ' + unmapped.map(function(c){ return '« ' + esc(c) + ' »'; }).join(', ') + '.' : '') +
+      msg.innerHTML = '<strong>Zendesk : ' + (added.length ? plural(added.length, 'ticket ajouté', 'tickets ajoutés') : 'aucun nouveau ticket') + '.</strong>' +
+        (kept ? ' ' + plural(kept, 'déjà dans la session', 'déjà dans la session') + '.' : '') +
+        (arch ? ' ' + plural(arch, 'déjà archivé, non réimporté', 'déjà archivés, non réimportés') + '.' : '') +
+        (added.length && unmapped.length ? ' Colonnes laissées vides : ' + unmapped.map(function(c){ return '« ' + esc(c) + ' »'; }).join(', ') + '.' : '') +
         ((data.avertissements || []).length ? '<br><span class="err-text">' + data.avertissements.map(esc).join('<br>') + '</span>' : '');
     } catch (e){
       msg.innerHTML = '<span class="err-text">Récupération Zendesk impossible : ' + esc(e.message || String(e)) + '</span>';
@@ -4247,7 +4252,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
   function auditText(a, d){
     d = d || {};
     switch (a){
-      case 'import': return plural(d.ajoutes || 0, 'ticket ajouté', 'tickets ajoutés') + (d.mis_a_jour ? ', ' + d.mis_a_jour + ' mis à jour' : '');
+      case 'import': return plural(d.ajoutes || 0, 'ticket ajouté', 'tickets ajoutés') + (d.mis_a_jour ? ', ' + d.mis_a_jour + ' mis à jour' : '') + (d.source === 'zendesk' ? ' · depuis Zendesk' : '');
       case 'session_validee': return plural(d.tickets || 0, 'ticket archivé', 'tickets archivés') + (d.non_affectes_retires ? ', ' + plural(d.non_affectes_retires, 'non affecté retiré', 'non affectés retirés') : '');
       case 'session_supprimee': return 'session du ' + fmtDateTime(d.at) + ' · ' + plural(d.tickets || 0, 'ticket', 'tickets');
       case 'modele_modifie': return (d.colonnes || []).join(' · ');
