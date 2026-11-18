@@ -458,6 +458,9 @@ td.c-long{white-space:normal}
   box-shadow:0 1px 2px rgba(20,26,42,.06),0 12px 32px rgba(20,26,42,.16);animation:fade .12s ease;
 }
 .opt-pop[hidden]{display:none}
+/* Validation : tickets qui ne seront pas affectés dans Zendesk */
+.zd-skip{margin:-4px 0 10px;padding-left:18px;font-size:12.5px;color:var(--muted);display:grid;gap:3px;max-height:160px;overflow:auto}
+.zd-skip strong{color:var(--text)}
 /* Menu « Autre » : import Excel et personnes à affecter */
 .opt-pop.menu-pop{left:0;right:auto;display:grid;gap:2px}
 .opt-pop.menu-pop[hidden]{display:none}
@@ -2919,15 +2922,84 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
       (rest.length ? ' ; les tickets non affectés sont retirés de la session, ils seront réimportés à la prochaine.' : '.') + '</p>';
   }
 
-  $('validateBtn').addEventListener('click', function(){
+  /* ---------- Bêta : affectation dans Zendesk à la validation de la session ---------- */
+  // Appel d'une fonction Supabase Zendesk : renvoie la réponse, ou lève une erreur avec le message de Zendesk
+  async function zendeskCall(name, body){
+    var res = await db.functions.invoke(name, { body: body });
+    var data = res.data || {};
+    if (res.error && !data.erreur){
+      try { data = await res.error.context.json(); } catch (e){ data = { erreur: res.error.message }; }
+    }
+    if (data.erreur) throw new Error(data.erreur);
+    return data;
+  }
+  // Prépare l'envoi : vérifie dans Zendesk les tickets et les consultants (fonction zendesk-verif, lecture seule)
+  // → { send: [{ ticket, agent_id, groupe_id, agent }], skip: [{ ticket, agent, raison }], error }
+  async function zendeskPlan(done){
+    var plan = { send: [], skip: [], error: '' };
+    var pairs = done.map(function(t){ return { ticket: (t.cells[0] || '').trim(), agent: t.assignee }; });
+    var agents = pairs.map(function(p){ return p.agent; }).filter(function(a, i, all){ return all.indexOf(a) === i; });
+    try {
+      var data = await zendeskCall('zendesk-verif', { tickets: pairs.map(function(p){ return p.ticket; }), agents: agents, verifier: pairs });
+      var agentId = {}, tk = {};
+      (data.agents || []).forEach(function(a){ if (a.ok) agentId[norm(a.nom)] = a.zendesk_id; });
+      (data.tickets || []).forEach(function(t){ tk[t.id] = t; });
+      (data.verification || []).forEach(function(v){
+        if (!v.ok){ plan.skip.push({ ticket: v.ticket, agent: v.agent, raison: v.raison || 'refusé' }); return; }
+        var aid = agentId[norm(v.agent)], t = tk[v.ticket] || {};
+        if (t.assigne_id === aid && !v.nouveau_groupe_id){ plan.skip.push({ ticket: v.ticket, agent: v.agent, raison: 'déjà assigné à cette personne dans Zendesk', same: true }); return; }
+        plan.send.push({ ticket: v.ticket, agent_id: aid, groupe_id: v.nouveau_groupe_id || null, agent: v.agent });
+      });
+    } catch (e){ plan.error = e.message || String(e); }
+    return plan;
+  }
+  function zendeskPlanHTML(plan){
+    var issues = plan.skip.filter(function(s){ return !s.same; }), same = plan.skip.length - issues.length;
+    if (plan.error) return '<p class="modal-kicker">Zendesk</p><p class="modal-note err-text">Vérification Zendesk impossible : ' + esc(plan.error) +
+      '. La session sera validée sans affectation dans Zendesk.</p>';
+    var list = issues.slice(0, 8).map(function(s){ return '<li><strong>' + esc(s.ticket) + '</strong> · ' + esc(s.agent) + ' : ' + esc(s.raison) + '</li>'; }).join('');
+    return '<p class="modal-kicker">Zendesk</p>' +
+      '<p class="modal-note"><strong>' + plural(plan.send.length, 'ticket sera affecté', 'tickets seront affectés') + ' dans Zendesk</strong>' +
+      (same ? ' (' + plural(same, 'déjà assigné', 'déjà assignés') + ' à la bonne personne)' : '') + '.' +
+      (issues.length ? ' Ne seront pas affectés :</p><ul class="zd-skip">' + list + (issues.length > 8 ? '<li>… et ' + (issues.length - 8) + ' autres</li>' : '') + '</ul><p class="modal-note">' : ' ') +
+      'Annuler la validation ensuite ne défait pas les affectations faites dans Zendesk.</p>';
+  }
+  async function zendeskAssign(plan){
+    var msg = $('tableMsg');
+    if (!plan || plan.error || !plan.send.length) return;
+    msg.innerHTML = 'Affectation dans Zendesk en cours (' + plural(plan.send.length, 'ticket', 'tickets') + ')…';
+    try {
+      var data = await zendeskCall('zendesk-affecter', { affectations: plan.send.map(function(p){ return { ticket: p.ticket, agent_id: p.agent_id, groupe_id: p.groupe_id }; }) });
+      var bad = (data.resultats || []).filter(function(r){ return !r.ok; });
+      audit('zendesk_affecte', { affectes: data.affectes || 0, erreurs: bad.length });
+      msg.innerHTML = '<strong>Zendesk : ' + plural(data.affectes || 0, 'ticket affecté', 'tickets affectés') + '.</strong>' +
+        (bad.length ? '<br><span class="err-text">' + plural(bad.length, 'ticket non affecté', 'tickets non affectés') + ' : ' +
+          bad.map(function(r){ return esc(r.ticket) + ' (' + esc(typeof r.raison === 'string' ? r.raison : JSON.stringify(r.raison)) + ')'; }).join(', ') + '.</span>' : '');
+    } catch (e){
+      audit('zendesk_affecte', { affectes: 0, erreurs: plan.send.length, erreur: e.message || String(e) });
+      msg.innerHTML = '<span class="err-text">Affectation dans Zendesk impossible : ' + esc(e.message || String(e)) +
+        '. Les tickets sont bien archivés dans le programme ; vérifiez leur état dans Zendesk.</span>';
+    }
+  }
+
+  $('validateBtn').addEventListener('click', async function(){
     var done = state.tickets.filter(function(t){ return t.assignee; });
     var rest = state.tickets.filter(function(t){ return !t.assignee; });
     if (!done.length){
       askConfirm({ title: 'Aucun ticket affecté', html: '<p class="modal-note">Affectez au moins un ticket avant de valider la session.</p>', confirmLabel: 'OK', cancelLabel: false });
       return;
     }
-    askConfirm({ title: 'Valider la session ?', html: validationHTML(done, rest), confirmLabel: 'Valider la session', tone: 'success' })
-      .then(function(ok){ if (ok) validateSession(done, rest); });
+    var btn = this, plan = null;
+    if (BETA){ // bêta : vérification Zendesk avant d'afficher le récapitulatif
+      var label = btn.textContent;
+      btn.disabled = true; btn.textContent = 'Vérification Zendesk…';
+      try { plan = await zendeskPlan(done); } finally { btn.disabled = false; btn.textContent = label; }
+    }
+    var ok = await askConfirm({ title: 'Valider la session ?', html: validationHTML(done, rest) + (plan ? zendeskPlanHTML(plan) : ''),
+      confirmLabel: plan && !plan.error && plan.send.length ? 'Valider et affecter dans Zendesk' : 'Valider la session', tone: 'success' });
+    if (!ok) return;
+    validateSession(done, rest);
+    if (plan) zendeskAssign(plan);
   });
   function validateSession(done, rest){
     var ses = { id: uid(), at: new Date().toISOString() }, today = isoDay(new Date());
@@ -2941,7 +3013,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     var inv = save();
     audit('session_validee', { session_id: ses.id, at: ses.at, tickets: done.length, non_affectes_retires: rest.length });
     saveUndo(inv, 'session', 'Session validée le {date} : <strong>' + plural(done.length, 'ticket archivé', 'tickets archivés') + '</strong>' + (rest.length ? ', ' + plural(rest.length, 'non affecté retiré', 'non affectés retirés') : '') + '.');
-    $('tableMsg').textContent = '';
+    $('tableMsg').textContent = ''; // le bilan Zendesk (bêta) s'y affiche juste après
     renderAll();
     whenSaved(function(){
       showToast('Session validée · ' + plural(done.length, 'ticket archivé', 'tickets archivés'));
@@ -4414,7 +4486,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
     'import': 'Import', tickets_pris_importes: 'Tickets pris importés', session_validee: 'Session validée', session_supprimee: 'Session supprimée', import_pris_supprime: 'Import de tickets pris supprimé',
     modele_modifie: 'Modèle de colonnes modifié', tickets_vides: 'Tickets vidés', sauvegarde_restauree: 'Sauvegarde restaurée',
     donnees_locales_envoyees: 'Données de l\'ancienne version envoyées', annulation: 'Annulation',
-    ticket_supprime: 'Ticket supprimé', ticket_desarchive: 'Ticket remis en session', ticket_ajoute: 'Ticket ajouté', ticket_modifie: 'Ticket modifié',
+    ticket_supprime: 'Ticket supprimé', ticket_desarchive: 'Ticket remis en session', ticket_ajoute: 'Ticket ajouté', ticket_modifie: 'Ticket modifié', zendesk_affecte: 'Affectation Zendesk',
     personne_ajoutee: 'Personne ajoutée', personne_retiree: 'Personne retirée', personne_archivee: 'Consultant archivé', personne_restauree: 'Consultant restauré', poles_modifies: 'Pôle modifié',
     client_enregistre: 'Client enregistré', client_supprime: 'Client supprimé'
   };
@@ -4432,6 +4504,7 @@ input[type=month]:hover::-webkit-calendar-picker-indicator,input[type=date]:hove
         return plural(d.tickets || 0, 'ticket en cours', 'tickets en cours') + ', ' + plural(d.archives || 0, 'archivé', 'archivés');
       case 'annulation': return d.operation || '';
       case 'ticket_supprime': case 'ticket_desarchive': case 'ticket_ajoute': return d.ticket || '';
+      case 'zendesk_affecte': return plural(d.affectes || 0, 'ticket affecté', 'tickets affectés') + (d.erreurs ? ', ' + plural(d.erreurs, 'erreur', 'erreurs') : '') + (d.erreur ? ' · ' + d.erreur : '');
       case 'ticket_modifie': return (d.avant ? d.avant + ' → ' : '') + (d.ticket || '') + ((d.colonnes || []).length ? ' · ' + d.colonnes.join(', ') : '');
       case 'personne_ajoutee': case 'personne_retiree': case 'personne_archivee': case 'personne_restauree': return d.nom || '';
       case 'client_enregistre': case 'client_supprime': return (d.client || '') + ' · ' + plural(d.organisations || 0, 'organisation', 'organisations');
