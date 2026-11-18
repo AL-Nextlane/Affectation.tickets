@@ -158,7 +158,9 @@ Deno.serve(async (req) => {
     const withAgent = active.filter((f) => optNames(f).includes("agent"));
     const fAssist = (forcedId ? active.find((f) => f.id === forcedId) : undefined) ||
       titled(FIELD_TITLES.assistance)[0] || (withAgent.length === 1 ? withAgent[0] : undefined);
-    const missing = [!fProduit && "Produit", !fCat && "Catégorie", !fAssist && "Type d'assistance"].filter(Boolean);
+    // « Type d'assistance » n'est pas un champ de ticket personnalisé dans ce Zendesk (critère interne des vues).
+    // Il reste facultatif : sans lui, le filtre « assigné à un consultant connu » (fait par le programme) en tient lieu.
+    const missing = [!fProduit && "Produit", !fCat && "Catégorie", forcedId && !fAssist && "Type d'assistance"].filter(Boolean);
     if (missing.length) {
       // Diagnostic : listes déroulantes dont un titre, une option ou une valeur évoque « agent » ou « assistance »
       const hint = (s: unknown) => /agent|assist|support|type/.test(norm(String(s ?? "")));
@@ -176,9 +178,10 @@ Deno.serve(async (req) => {
     // Valeur « Agent » du type d'assistance (valeur technique de l'option)
     // Option « Agent » : nom exact, ou valeur technique imposée par le secret ZENDESK_VALEUR_AGENT
     const forcedValue = (Deno.env.get("ZENDESK_VALEUR_AGENT") || "").trim();
-    const agentValues = forcedValue ? [forcedValue] : (fAssist.custom_field_options || [])
+    const agentValues: unknown[] = !fAssist ? [] : forcedValue ? [forcedValue] : (fAssist.custom_field_options || [])
       .filter((o: any) => norm(String(o.name).split("::").pop()!) === "agent").map((o: any) => o.value);
-    if (!agentValues.length) {
+    if (!fAssist) warn.push("Critère « Type d'assistance = Agent » non appliqué (pas de champ correspondant) : seuls les tickets assignés à un consultant connu sont comptés.");
+    if (fAssist && !agentValues.length) {
       return reply({
         erreur: "Option « Agent » introuvable dans le champ « " + fAssist.title + " ».",
         options_disponibles: (fAssist.custom_field_options || []).map((o: any) => o.name),
@@ -187,7 +190,7 @@ Deno.serve(async (req) => {
     const champsUtilises = {
       produit: fProduit.title + " (" + fProduit.id + ")",
       categorie: fCat.title + " (" + fCat.id + ")",
-      type_assistance: fAssist.title + " (" + fAssist.id + ")",
+      type_assistance: fAssist ? fAssist.title + " (" + fAssist.id + ")" : "non appliqué",
     };
 
     // 2. Présélection par la recherche : tag + affecté + mis à jour depuis la date limite.
@@ -209,7 +212,7 @@ Deno.serve(async (req) => {
     const present = (v: unknown) => v != null && v !== "" && !(Array.isArray(v) && !v.length);
     const candidates = found.filter((t) =>
       t.assignee_id && (t.tags || []).includes(TAG) &&
-      present(val(t, fProduit)) && present(val(t, fCat)) && agentValues.includes(val(t, fAssist))
+      present(val(t, fProduit)) && present(val(t, fCat)) && (!fAssist || agentValues.includes(val(t, fAssist)))
     );
 
     // 4. Date de dernière affectation (métriques du ticket), par paquets de 100
